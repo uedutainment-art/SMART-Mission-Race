@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMART Mission Race - Dashboard</title>
+  <link rel="stylesheet" href="./css/base.css">
+  <link rel="stylesheet" href="./css/dashboard.css">
+</head>
+<body>
+  <div id="container">
+    <!-- ① 실시간 순위 -->
+    <section id="section1">
+      <h2>🏁 실시간 순위</h2>
+      <div id="rankList">
+        <p>Team1 - 100점</p>
+        <p>Team2 - 90점</p>
+        <p>Team3 - 70점</p>
+      </div>
+    </section>
+
+    <!-- ② 미션 진행 -->
+    <section id="section2">
+      <header id="logoArea">
+        <img src="./assets/logo.png" alt="Logo" id="mainLogo">
+        <h1>SMART Mission Race</h1>
+        <h3>powered by Uedutainment</h3>
+      </header>
+
+      <main id="missionArea"></main>
+    </section>
+
+    <!-- ③ 현재 시간 + 채팅 -->
+    <section id="section3">
+      <div id="timeArea">
+        <h2>🕒 시간</h2>
+        <div id="currentTime">00:00:00</div>
+        <div id="remainingTime">남은 시간: 11분</div>
+      </div>
+
+      <div id="chatArea">
+        <h2>💬 HQ와 채팅</h2>
+        <div id="chatBox"></div>
+        <div class="chatInputWrap">
+          <input id="chatInput" placeholder="메시지 입력..." />
+          <button id="sendBtn">보내기</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 📦 JS 모듈 연결 -->
+  <script type="module">
+    import { initTimeModule } from "./js/time_module.js";
+    import { initChatModule } from "./js/chat_module.js";
+    import { initRankModule } from "./js/rank_module.js";
+    import { initMissionModule } from "./js/mission_module.js";
+
+    // 모듈 초기화
+    initTimeModule("currentTime", "remainingTime", 11);
+    initChatModule("Team1");
+    initRankModule("rankList");
+    initMissionModule("missionArea");
+  </script>
+</body>
+</html>

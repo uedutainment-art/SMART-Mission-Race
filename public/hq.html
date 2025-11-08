@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HQ | SMART Mission Race</title>
+  <link rel="stylesheet" href="./css/hq.css" />
+</head>
+
+<body>
+  <div class="hq-header">
+    <h1 id="hqProjectTitle">SMART Mission Race HQ</h1>
+  </div>
+  <div class="hq-layout">
+    <aside class="left-panel">
+      <div class="rank-header">
+        <span class="flag-icon">🏁</span>
+        <span>실시간 팀 순위</span>
+      </div>
+      <div id="hqRankList" class="rank-list"></div>
+    </aside>
+
+    <main class="center-panel-container">
+      <div class="hq-actions">
+        <button id="hqResetBtn" class="reset-btn">선택 팀 미션 리셋</button>
+      </div>
+      <div class="center-panel" id="hqBoard"></div>
+    </main>
+
+    <aside class="right-panel">
+      <div class="time-panel">
+        <p class="time-label">현재 시간</p>
+        <div class="timer" id="hqCurrentTime"></div>
+        <p class="time-label">남은 시간</p>
+        <div class="timer" id="hqRemainTime"></div>
+        <div class="timer-note" id="hqTimerNote"></div>
+      </div>
+      <div id="hqChat" class="chatbox"></div>
+    </aside>
+  </div>
+
+  <script type="module" src="./js/hq.js"></script>
+</body>
+</html>

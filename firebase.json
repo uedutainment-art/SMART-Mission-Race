@@ -1,0 +1,19 @@
+{
+  "functions": {
+    "source": "functions"
+  },
+  "hosting": {
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      { "source": "/dashboard", "destination": "/dashboard.html" },
+      { "source": "/hq", "destination": "/hq.html" },
+      { "source": "/admin", "destination": "/admin.html" },
+      { "source": "/team_login", "destination": "/team_login.html" }
+    ]
+  }
+}

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SMART Mission Race | 프로젝트 관리자</title>
+    <link rel="stylesheet" href="./css/admin.css" />
+  </head>
+  <body>
+    <div class="admin-shell">
+      <header>
+        <h1>SMART Mission Race · 프로젝트 관리</h1>
+      </header>
+      <div class="admin-layout">
+        <section class="panel">
+          <div class="project-actions">
+            <button class="btn btn-primary" id="newProjectBtn">프로젝트 생성</button>
+            <button class="btn btn-danger" id="deleteProjectBtn">프로젝트 삭제</button>
+            <button class="btn btn-secondary" id="refreshProjectsBtn">새로고침</button>
+          </div>
+          <h2>프로젝트 목록</h2>
+          <div class="editor-scroll" style="flex:1;">
+            <table class="project-table" id="projectTable">
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="selectAllProjects"></th>
+                  <th>프로젝트 이름</th>
+                  <th>마스터 비밀번호</th>
+                  <th>기간</th>
+                  <th>상태</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>프로젝트 정보</h2>
+          <div class="editor-scroll" id="editorScroll">
+            <form id="projectForm">
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="projectNameInput">프로젝트 이름</label>
+                  <input id="projectNameInput" placeholder="서울교육 런! 챌린지!" />
+                </div>
+                <div class="form-group">
+                  <label for="masterPasswordInput">마스터 패스워드</label>
+                  <input id="masterPasswordInput" placeholder="예) SEOUL1" />
+                </div>
+                <div class="form-group">
+                  <label for="startDateInput">시작일</label>
+                  <input id="startDateInput" type="date" />
+                </div>
+                <div class="form-group">
+                  <label for="endDateInput">종료일</label>
+                  <input id="endDateInput" type="date" />
+                </div>
+                <div class="form-group">
+                  <label for="organizerInput">참가 회사 / 기관</label>
+                  <input id="organizerInput" placeholder="서울특별시교육청" />
+                </div>
+                <div class="form-group">
+                  <label for="venueInput">교육 장소</label>
+                  <input id="venueInput" placeholder="서울특별시교육연수원" />
+                </div>
+                <div class="form-group">
+                  <label for="participantInput">참가 인원</label>
+                  <input id="participantInput" type="number" min="0" />
+                </div>
+                <div class="form-group">
+                  <label for="teamCountInput">참가 팀 수</label>
+                  <input id="teamCountInput" type="number" min="1" max="30" value="10" />
+                </div>
+              </div>
+
+              <div class="section-title">로고 설정 (입장/대시보드 공용)</div>
+              <div class="form-group">
+                <label>로고 이미지</label>
+                <div class="logo-preview">
+                  <img id="sharedLogoPreview" alt="프로젝트 로고" />
+                  <input type="file" id="sharedLogoInput" accept="image/*" />
+                </div>
+              </div>
+
+              <div class="section-title">팀 입력</div>
+              <table class="teams-table" id="teamTable">
+                <thead>
+                  <tr>
+                    <th>팀</th>
+                    <th>팀 이름</th>
+                    <th>비밀번호</th>
+                    <th>문제</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+
+              <div class="section-title">미션 설정</div>
+              <div class="form-group">
+                <label for="missionCountInput">미션 수</label>
+                <input id="missionCountInput" type="number" min="1" max="20" value="9" />
+              </div>
+
+              <div class="editor-actions">
+                <button type="button" class="btn btn-primary" id="saveProjectBtn">저장하기</button>
+                <button type="button" class="btn btn-secondary" id="resetResultsBtn">결과 삭제</button>
+                <button type="button" class="btn btn-secondary" id="openHQBtn">HQ 보기</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="missionModal" hidden>
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h3 id="missionModalTitle">문제 입력</h3>
+            <p>코드/미션 정답과 이미지를 설정하세요.</p>
+          </div>
+          <button class="modal-close" id="missionModalClose">×</button>
+        </div>
+        <div class="modal-body">
+          <table class="mission-table">
+            <thead>
+              <tr>
+                <th>미션</th>
+                <th>코드 정답</th>
+                <th>미션 정답</th>
+                <th>코드 이미지</th>
+                <th>미션 이미지</th>
+              </tr>
+            </thead>
+            <tbody id="missionModalBody"></tbody>
+          </table>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="missionModalSave">저장하기</button>
+          <button class="btn btn-secondary" id="missionModalCancel">닫기</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./js/admin.js"></script>
+  </body>
+</html>

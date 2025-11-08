@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HQ - SMART Mission Race</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/hq.css">
+</head>
+<body>
+  <div id="container">
+    <!-- 왼쪽 : 팀 리스트 및 진행상황 -->
+    <section id="section1">
+      <h2>📊 팀 현황</h2>
+      <div id="teamPanel"></div>
+    </section>
+
+    <!-- 가운데 : 미션 모니터링 (사진 포함) -->
+    <section id="section2">
+      <header id="hqHeader">
+        <img src="assets/logo.png" alt="Logo" id="mainLogo">
+        <h1>HQ Monitoring Panel</h1>
+      </header>
+      <main id="hqMissionPanel"></main>
+    </section>
+
+    <!-- 오른쪽 : 시간 + 전체 공지 + 체팅 -->
+    <section id="section3">
+      <div id="timeArea">
+        <div id="currentTime"></div>
+        <div id="remainingTime"></div>
+      </div>
+      <div id="chatArea">
+        <h2>💬 팀 채팅</h2>
+        <div id="chatBox"></div>
+        <input id="chatInput" placeholder="메시지 입력" />
+        <button id="sendBtn">보내기</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- 모듈 호출 -->
+  <script type="module">
+    import { initTimeModule } from "./js/time_module.js";
+    import { initChatModule } from "./js/chat_module.js";
+    import { initMissionModule } from "./js/mission_module.js";
+
+    initTimeModule("currentTime", "remainingTime", 11);
+    initChatModule("HQ");
+    initMissionModule("hqMissionPanel", true); // HQ 모드
+  </script>
+</body>
+</html>

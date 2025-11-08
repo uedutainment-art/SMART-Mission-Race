@@ -1,0 +1,60 @@
+.mission-box {
+  border-radius: 10px;
+  padding: 15px;
+  color: white;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.mission-header {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+.mission-body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.mission-btn {
+  background: #4cc9f0;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+.mission-btn:hover {
+  background: #3bb1d6;
+}
+#mission-panel {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+#panel-inner {
+  background: #1f2933;
+  padding: 25px;
+  border-radius: 12px;
+  width: 300px;
+  text-align: center;
+}
+#qrOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+}
+#qrInner {
+  background: #1f2933;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+}

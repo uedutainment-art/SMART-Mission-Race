@@ -1,0 +1,26 @@
+body {
+  margin: 0;
+  padding: 0;
+  background: #0b1522;
+  color: white;
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
+}
+
+#container {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  height: 100vh;
+}
+
+section {
+  padding: 15px;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  overflow-y: auto;
+}
+
+#section1 { background: rgba(255,255,255,0.05); }
+#section2 { background: rgba(255,255,255,0.08); text-align: center; }
+#section3 { background: rgba(255,255,255,0.05); }
+
+#mainLogo { width: 120px; margin-bottom: 8px; }
+h1, h2, h3 { margin: 5px 0; }

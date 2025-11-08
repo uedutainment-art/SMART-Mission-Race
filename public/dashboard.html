@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMART Mission Race Dashboard</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+</head>
+
+<body>
+  <div class="main-layout">
+    <!-- 순위 -->
+    <div class="rank-section">
+      <div class="rank-header">
+        <span class="flag-icon">🏁</span>
+        <span>실시간 팀 순위</span>
+      </div>
+      <div id="rankList" class="rank-list"></div>
+    </div>
+
+    <!-- 미션 -->
+    <div class="mission-section">
+      <div class="mission-hero">
+        <img src="images/seoul_edu_logo.png" alt="프로젝트 로고" id="missionLogo">
+        <div class="mission-title" id="eventName">프로젝트 이름</div>
+      </div>
+      <div id="missionArea" class="mission-grid"></div>
+      <div class="tagline" id="tagline">SMART Mission Race | Powered by Uedutainment</div>
+    </div>
+
+    <!-- 상태 -->
+    <div class="status-section">
+      <div class="team-name-banner" id="teamBadge">TEAM</div>
+      <div id="rankNow" class="rank-label"></div>
+      <div class="time-panel">
+        <div class="time-row">
+          <span class="time-label">현재 시간</span>
+          <span id="currentTime" class="time-value"></span>
+        </div>
+        <div class="time-row">
+          <span class="time-label">남은 시간</span>
+          <span id="remainTime" class="time-value timer"></span>
+        </div>
+        <div id="timerNote" class="timer-note"></div>
+      </div>
+      <div id="chatModule"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/dashboard.js"></script>
+</body>
+</html>

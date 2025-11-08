@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SMART Mission Race | 팀 로그인</title>
+    <link rel="stylesheet" href="./css/login.css" />
+  </head>
+  <body>
+    <div class="login-scene">
+      <img src="" alt="프로젝트 로고" class="login-logo hidden" id="projectLogo" />
+      <div class="project-name" id="projectProgram">프로젝트 정보를 입력하세요.</div>
+      <div class="project-dates" id="projectDates"></div>
+      <div class="login-status" id="loginStatus"></div>
+
+      <section class="login-step active" id="masterStep">
+        <div class="input-field">
+          <label for="masterInput">MASTER PASSWORD</label>
+          <input id="masterInput" type="password" autocomplete="current-password" placeholder="마스터 패스워드 입력" />
+        </div>
+        <button class="login-button" id="masterButton">UNLOCK</button>
+      </section>
+
+      <section class="login-step" id="teamStep">
+        <div class="input-field">
+          <label for="teamNameInput">TEAM NAME</label>
+          <input id="teamNameInput" type="text" placeholder="예) 잘나가는 조" maxlength="24" />
+        </div>
+        <div class="input-field">
+          <label for="teamPasswordInput">TEAM PASSWORD</label>
+          <input id="teamPasswordInput" type="password" placeholder="팀 비밀번호" autocomplete="off" />
+        </div>
+        <button class="login-button" id="teamButton">TEAM LOGIN</button>
+      </section>
+
+      <div class="login-footer">ⓒ U-edutainment. All rights reserved.</div>
+    </div>
+
+    <script type="module" src="./js/login.js"></script>
+  </body>
+</html>
