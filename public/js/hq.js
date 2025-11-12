@@ -200,6 +200,19 @@ function initializeHQ(ctx) {
       if (key) renderMissionGallery(key);
     }
   });
+
+  // 호환성: 업로드 페이지에서 project 파라미터를 생략해 'default'로 저장한 경우를 함께 반영
+  const defaultUploadsRef = ref(db, `uploads_meta/default`);
+  onValue(defaultUploadsRef, (snapshot) => {
+    const defaults = snapshot.val() || {};
+    // 기본(default) 경로의 업로드를 현재 캐시에 병합하되, 현재 프로젝트 경로의 값이 우선
+    uploadsCache = mergeUploads(uploadsCache, defaults);
+    refreshPhotoStatuses(projectId, board);
+    if (photoModalEl && currentPhotoContext) {
+      const key = currentPhotoContext.currentMissionKey || currentPhotoContext.missionSelect?.value;
+      if (key) renderMissionGallery(key);
+    }
+  });
 }
 
 function sortTeamIds(raw = {}) {
@@ -395,11 +408,48 @@ async function fetchCurrentUploads(projectId, teamId) {
     const snapshot = await get(ref(db, path));
     const data = snapshot.val() || {};
     console.log(`[HQ] Data from ${path}:`, data);
-    return data;
+    if (Object.keys(data).length > 0) return data;
+    // 프로젝트가 다르게 저장된 경우 'default'로 폴백
+    if (projectId !== "default") {
+      const fallbackPath = `uploads_meta/default/${teamId}`;
+      console.log(`[HQ] Primary empty. Trying fallback: ${fallbackPath}`);
+      const fallbackSnap = await get(ref(db, fallbackPath));
+      const fallback = fallbackSnap.val() || {};
+      console.log(`[HQ] Data from ${fallbackPath}:`, fallback);
+      return fallback;
+    }
+    return {};
   } catch (error) {
     console.error("Current uploads fetch failed", error);
     return {};
   }
+}
+
+// uploadsCache 병합 유틸: base 우선, extra는 비어있는 곳만 채움
+function mergeUploads(base = {}, extra = {}) {
+  const result = { ...base };
+  Object.entries(extra).forEach(([teamId, missions]) => {
+    if (!missions || typeof missions !== "object") return;
+    if (!result[teamId]) {
+      result[teamId] = missions;
+      return;
+    }
+    const targetTeam = result[teamId];
+    Object.entries(missions).forEach(([missionKey, slots]) => {
+      if (!slots || typeof slots !== "object") return;
+      if (!targetTeam[missionKey]) {
+        targetTeam[missionKey] = slots;
+        return;
+      }
+      const targetSlots = targetTeam[missionKey];
+      Object.entries(slots).forEach(([slotId, payload]) => {
+        if (!targetSlots[slotId]) {
+          targetSlots[slotId] = payload;
+        }
+      });
+    });
+  });
+  return result;
 }
 
 function resetTeamMissions(projectId, teamId) {
