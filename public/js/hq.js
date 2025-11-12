@@ -301,9 +301,16 @@ function getRequiredSlots(teamId, missionKey) {
 }
 
 async function handlePhotoClick(projectId, teamId) {
+  console.log(`[HQ] Photo click - projectId: ${projectId}, teamId: ${teamId}`);
+  
   let teamUploads = uploadsCache[teamId];
+  console.log("[HQ] Cache check:", teamUploads);
+  
   if (!teamUploads || Object.keys(teamUploads).length === 0) {
+    console.log("[HQ] Fetching current uploads...");
     teamUploads = await fetchCurrentUploads(projectId, teamId);
+    console.log("[HQ] Current uploads:", teamUploads);
+    
     if (teamUploads && Object.keys(teamUploads).length > 0) {
       uploadsCache[teamId] = {
         ...(uploadsCache[teamId] || {}),
@@ -311,8 +318,12 @@ async function handlePhotoClick(projectId, teamId) {
       };
     }
   }
+  
   if (!teamUploads || Object.keys(teamUploads).length === 0) {
+    console.log("[HQ] Fetching legacy uploads...");
     teamUploads = await loadLegacyUploads(projectId, teamId);
+    console.log("[HQ] Legacy uploads:", teamUploads);
+    
     if (teamUploads && Object.keys(teamUploads).length > 0) {
       uploadsCache[teamId] = {
         ...(uploadsCache[teamId] || {}),
@@ -320,10 +331,14 @@ async function handlePhotoClick(projectId, teamId) {
       };
     }
   }
+  
   if (!teamUploads || Object.keys(teamUploads).length === 0) {
+    console.error("[HQ] No uploads found for team:", teamId);
     alert("업로드된 사진이 없습니다.");
     return;
   }
+  
+  console.log("[HQ] Opening photo modal with uploads:", teamUploads);
   openPhotoModal(projectId, teamId, teamUploads);
 }
 
@@ -368,12 +383,21 @@ function normalizeLegacyUploads(raw = {}) {
 }
 
 async function fetchCurrentUploads(projectId, teamId) {
-  if (!projectId) return {};
+  if (!projectId) {
+    console.warn("[HQ] No projectId provided for fetchCurrentUploads");
+    return {};
+  }
+  
+  const path = `uploads_meta/${projectId}/${teamId}`;
+  console.log(`[HQ] Fetching from path: ${path}`);
+  
   try {
-    const snapshot = await get(ref(db, `uploads_meta/${projectId}/${teamId}`));
-    return snapshot.val() || {};
+    const snapshot = await get(ref(db, path));
+    const data = snapshot.val() || {};
+    console.log(`[HQ] Data from ${path}:`, data);
+    return data;
   } catch (error) {
-    console.warn("Current uploads fetch failed", error);
+    console.error("Current uploads fetch failed", error);
     return {};
   }
 }
