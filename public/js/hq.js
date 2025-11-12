@@ -315,15 +315,30 @@ function getRequiredSlots(teamId, missionKey) {
   const config = latestTeamData[teamId]?.config?.missions?.[missionNumber] || {};
   const photoSlots = Number(config.photoSlots) || 0;
   const specialSlots = Number(config.specialSlots) || 0;
-  if (photoSlots <= 0 && specialSlots <= 0) return [];
-  const slots = [];
-  for (let i = 1; i <= photoSlots; i++) {
-    slots.push(`Photo${i}`);
+  
+  // 설정이 있으면 설정 기준으로 반환
+  if (photoSlots > 0 || specialSlots > 0) {
+    const slots = [];
+    for (let i = 1; i <= photoSlots; i++) {
+      slots.push(`Photo${i}`);
+    }
+    for (let i = 1; i <= specialSlots; i++) {
+      slots.push(`S${i}`);
+    }
+    console.log(`[HQ] getRequiredSlots for ${teamId} ${missionKey} (from config):`, slots);
+    return slots;
   }
-  for (let i = 1; i <= specialSlots; i++) {
-    slots.push(`S${i}`);
+  
+  // 설정이 없으면 실제 업로드된 슬롯을 반환 (후방 호환성)
+  const teamUploads = uploadsCache[teamId];
+  if (teamUploads && teamUploads[missionKey]) {
+    const uploadedSlots = Object.keys(teamUploads[missionKey]);
+    console.log(`[HQ] getRequiredSlots for ${teamId} ${missionKey} (from uploads):`, uploadedSlots);
+    return uploadedSlots;
   }
-  return slots;
+  
+  console.log(`[HQ] getRequiredSlots for ${teamId} ${missionKey}: no config and no uploads, returning []`);
+  return [];
 }
 
 async function handlePhotoClick(projectId, teamId) {
