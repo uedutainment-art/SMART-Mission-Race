@@ -205,8 +205,11 @@ function initializeHQ(ctx) {
   const defaultUploadsRef = ref(db, `uploads_meta/default`);
   onValue(defaultUploadsRef, (snapshot) => {
     const defaults = snapshot.val() || {};
+    console.log("[HQ] Default uploads snapshot:", defaults);
     // 기본(default) 경로의 업로드를 현재 캐시에 병합하되, 현재 프로젝트 경로의 값이 우선
-    uploadsCache = mergeUploads(uploadsCache, defaults);
+    const merged = mergeUploads(uploadsCache, defaults);
+    console.log("[HQ] Merged uploadsCache:", merged);
+    uploadsCache = merged;
     refreshPhotoStatuses(projectId, board);
     if (photoModalEl && currentPhotoContext) {
       const key = currentPhotoContext.currentMissionKey || currentPhotoContext.missionSelect?.value;
@@ -259,28 +262,38 @@ function getTeamLabel(teamId) {
 
 function refreshPhotoStatuses(projectId, board) {
   const teamIds = Object.keys(latestTeamData || {});
+  console.log("[HQ] refreshPhotoStatuses called for teams:", teamIds);
+  console.log("[HQ] Current uploadsCache:", uploadsCache);
   teamIds.forEach((teamId) => {
-    board.setPhotoStatus(teamId, computePhotoStatus(projectId, teamId));
+    const status = computePhotoStatus(projectId, teamId);
+    console.log(`[HQ] Team ${teamId} photo status:`, status);
+    board.setPhotoStatus(teamId, status);
   });
 }
 
 function computePhotoStatus(projectId, teamId) {
   const teamUploads = uploadsCache[teamId];
-  if (!teamUploads) return "default";
+  console.log(`[HQ] computePhotoStatus for ${teamId}:`, teamUploads);
+  if (!teamUploads) {
+    console.log(`[HQ] No uploads found for ${teamId}, returning 'default'`);
+    return "default";
+  }
   let hasPending = false;
   let hasApproved = false;
 
   Object.entries(teamUploads).forEach(([missionKey, slots]) => {
     const requiredSlots = getRequiredSlots(teamId, missionKey);
+    console.log(`[HQ] ${teamId} ${missionKey} - required:`, requiredSlots, "slots:", slots);
     if (!requiredSlots.length) return;
     const state = evaluateMissionSlotState(slots, requiredSlots);
+    console.log(`[HQ] ${teamId} ${missionKey} state:`, state);
     if (state === "pending") hasPending = true;
     else if (state === "approved") hasApproved = true;
   });
 
-  if (hasPending) return "new";
-  if (hasApproved) return "done";
-  return "default";
+  const finalStatus = hasPending ? "new" : (hasApproved ? "done" : "default");
+  console.log(`[HQ] Final photo status for ${teamId}:`, finalStatus);
+  return finalStatus;
 }
 
 function evaluateMissionSlotState(slots = {}, requiredSlots = []) {
