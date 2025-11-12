@@ -354,20 +354,22 @@
         await uploadBytes(storageRef, file);
         const url = await getDownloadURL(storageRef);
 
-      await set(ref(db, `uploads_meta/${projectId}/${teamId}/mission_${missionId}/${slot.id}`), {
-        url,
-        type: file.type,
-        slot: slot.id,
-        label: slot.label,
-        status: "pending",
-        uploadedAt: Date.now(),
-      });
+        // 먼저 업로드 메타데이터 저장
+        await set(ref(db, `uploads_meta/${projectId}/${teamId}/mission_${missionId}/${slot.id}`), {
+          url,
+          type: file.type,
+          slot: slot.id,
+          label: slot.label,
+          status: "pending",
+          uploadedAt: Date.now(),
+        });
 
-      await push(ref(db, `chat/${projectId}/${teamId}`), {
-        sender: teamId,
-        text: `[사진 업로드] Mission ${missionId} ${slot.label}`,
-        createdAt: serverTimestamp(),
-      });
+        // 데이터 저장이 완료된 후 채팅 메시지 전송
+        await push(ref(db, `chat/${projectId}/${teamId}`), {
+          sender: teamId,
+          text: `[사진 업로드] Mission ${missionId} ${slot.label}`,
+          createdAt: serverTimestamp(),
+        });
 
         preview.innerHTML = file.type.startsWith("video")
           ? `<video src="${url}" controls playsinline></video>`
