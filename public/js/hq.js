@@ -23,6 +23,8 @@ if (projectIdFromQuery) {
 
 let latestTeamData = {};
 let uploadsCache = {};
+let primaryUploadsCache = {};
+let defaultUploadsCacheState = {};
 let legacyUploadsCache = {};
 let photoModalEl = null;
 let currentPhotoContext = null;
@@ -191,30 +193,31 @@ function initializeHQ(ctx) {
     }
   });
 
-  const uploadsRef = ref(db, `uploads_meta/${projectId}`);
-  onValue(uploadsRef, (snapshot) => {
-    uploadsCache = snapshot.val() || {};
+  function publishUploadsCache() {
+    uploadsCache = mergeUploads(primaryUploadsCache, defaultUploadsCacheState);
+    console.log("[HQ] publishUploadsCache -> primary:", primaryUploadsCache);
+    console.log("[HQ] publishUploadsCache -> default:", defaultUploadsCacheState);
+    console.log("[HQ] publishUploadsCache -> merged uploadsCache:", uploadsCache);
     refreshPhotoStatuses(projectId, board);
     if (photoModalEl && currentPhotoContext) {
       const key = currentPhotoContext.currentMissionKey || currentPhotoContext.missionSelect?.value;
       if (key) renderMissionGallery(key);
     }
+  }
+
+  const uploadsRef = ref(db, `uploads_meta/${projectId}`);
+  onValue(uploadsRef, (snapshot) => {
+    primaryUploadsCache = snapshot.val() || {};
+    console.log("[HQ] Primary uploads snapshot:", primaryUploadsCache);
+    publishUploadsCache();
   });
 
   // 호환성: 업로드 페이지에서 project 파라미터를 생략해 'default'로 저장한 경우를 함께 반영
   const defaultUploadsRef = ref(db, `uploads_meta/default`);
   onValue(defaultUploadsRef, (snapshot) => {
-    const defaults = snapshot.val() || {};
-    console.log("[HQ] Default uploads snapshot:", defaults);
-    // 기본(default) 경로의 업로드를 현재 캐시에 병합하되, 현재 프로젝트 경로의 값이 우선
-    const merged = mergeUploads(uploadsCache, defaults);
-    console.log("[HQ] Merged uploadsCache:", merged);
-    uploadsCache = merged;
-    refreshPhotoStatuses(projectId, board);
-    if (photoModalEl && currentPhotoContext) {
-      const key = currentPhotoContext.currentMissionKey || currentPhotoContext.missionSelect?.value;
-      if (key) renderMissionGallery(key);
-    }
+    defaultUploadsCacheState = snapshot.val() || {};
+    console.log("[HQ] Default uploads snapshot:", defaultUploadsCacheState);
+    publishUploadsCache();
   });
 }
 
