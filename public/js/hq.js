@@ -194,9 +194,11 @@ function initializeHQ(ctx) {
   });
 
   function publishUploadsCache() {
-    uploadsCache = mergeUploads(primaryUploadsCache, defaultUploadsCacheState);
-    console.log("[HQ] publishUploadsCache -> primary:", primaryUploadsCache);
-    console.log("[HQ] publishUploadsCache -> default:", defaultUploadsCacheState);
+    const normalizedPrimary = normalizeUploadsMap(primaryUploadsCache);
+    const normalizedDefault = normalizeUploadsMap(defaultUploadsCacheState);
+    uploadsCache = mergeUploads(normalizedPrimary, normalizedDefault);
+    console.log("[HQ] publishUploadsCache -> primary (normalized):", normalizedPrimary);
+    console.log("[HQ] publishUploadsCache -> default (normalized):", normalizedDefault);
     console.log("[HQ] publishUploadsCache -> merged uploadsCache:", uploadsCache);
     refreshPhotoStatuses(projectId, board);
     if (photoModalEl && currentPhotoContext) {
@@ -481,6 +483,30 @@ function mergeUploads(base = {}, extra = {}) {
     });
   });
   return result;
+}
+
+function normalizeUploadsMap(map = {}) {
+  const normalized = {};
+  Object.entries(map).forEach(([teamId, missions]) => {
+    if (!missions || typeof missions !== "object") return;
+    normalized[teamId] = normalizeMissionKeys(missions);
+  });
+  return normalized;
+}
+
+function normalizeMissionKeys(missions = {}) {
+  const normalized = {};
+  Object.entries(missions).forEach(([key, slots]) => {
+    if (!slots || typeof slots !== "object") return;
+    let missionKey = key;
+    if (!missionKey.startsWith("mission_")) {
+      const match = key.match(/\d+/);
+      if (match) missionKey = `mission_${match[0]}`;
+      else missionKey = `mission_${key}`;
+    }
+    normalized[missionKey] = slots;
+  });
+  return normalized;
 }
 
 function resetTeamMissions(projectId, teamId) {
