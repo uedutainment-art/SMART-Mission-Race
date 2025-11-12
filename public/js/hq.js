@@ -515,11 +515,17 @@ function createDefaultMissionState(total = missionTotal) {
 
 function openPhotoModal(projectId, teamId, missions) {
   closePhotoModal();
+  console.log("[HQ] openPhotoModal called with missions:", missions);
+  console.log("[HQ] Mission keys:", Object.keys(missions));
+  
   const missionKeys = Object.keys(missions)
     .filter((key) => key.startsWith("mission_"))
     .sort((a, b) => Number(a.split("_")[1]) - Number(b.split("_")[1]));
 
+  console.log("[HQ] Filtered mission_ keys:", missionKeys);
+
   if (missionKeys.length === 0) {
+    console.error("[HQ] No mission_ keys found in:", missions);
     alert("업로드된 사진이 없습니다.");
     return;
   }
