@@ -775,6 +775,8 @@ function downloadMissionAssets(projectId, teamId, missionKey, slotsFilter = null
   const missionId = missionKey.split("_")[1];
   const teamLabel = getTeamLabel(teamId);
   let hasFile = false;
+  let delay = 0;
+  
   Object.entries(missionSlots).forEach(([slotId, slot]) => {
     if (slotsFilter && slotsFilter.length && !slotsFilter.includes(slotId)) {
       return;
@@ -782,8 +784,14 @@ function downloadMissionAssets(projectId, teamId, missionKey, slotsFilter = null
     if (!slot?.url) return;
     hasFile = true;
     const fileName = buildDownloadFileName(teamId, teamLabel, missionId, slotId, slot.url);
-    triggerDownload(slot.url, fileName);
+    
+    // 브라우저 차단 방지를 위해 각 다운로드 사이에 지연 시간 추가
+    setTimeout(() => {
+      triggerDownload(slot.url, fileName);
+    }, delay);
+    delay += 500; // 500ms 간격으로 다운로드
   });
+  
   if (!hasFile) {
     alert("다운로드할 파일이 없습니다.");
   }
