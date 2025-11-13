@@ -924,7 +924,7 @@ function downloadMissionAssets(projectId, teamId, missionKey, slotsFilter = null
     
     // 브라우저 차단 방지를 위해 각 다운로드 사이에 지연 시간 추가
     setTimeout(() => {
-      triggerDownload(slot.url, fileName);
+      triggerDownload(slot, fileName);
     }, delay);
     delay += 500; // 500ms 간격으로 다운로드
   });
@@ -934,8 +934,9 @@ function downloadMissionAssets(projectId, teamId, missionKey, slotsFilter = null
   }
 }
 
-function triggerDownload(url, fileName) {
-  downloadFile(url, fileName);
+function triggerDownload(slot, fileName) {
+  if (!slot) return;
+  downloadFile(slot.url, fileName, slot.path);
 }
 
 function clampMissionTotal(value) {

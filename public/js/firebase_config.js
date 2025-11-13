@@ -11,7 +11,7 @@ import {
   get,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
-import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL, getBlob } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA82DnkKujrTiFSTwdAYEBJGvWM5nwqb94",
@@ -41,4 +41,5 @@ export {
   sRef,
   uploadBytes,
   getDownloadURL,
+  getBlob,
 };

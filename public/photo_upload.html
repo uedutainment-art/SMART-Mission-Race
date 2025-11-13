@@ -357,6 +357,7 @@
         // 먼저 업로드 메타데이터 저장
         await set(ref(db, `uploads_meta/${projectId}/${teamId}/mission_${missionId}/${slot.id}`), {
           url,
+          path: storageRef.fullPath,
           type: file.type,
           slot: slot.id,
           label: slot.label,
