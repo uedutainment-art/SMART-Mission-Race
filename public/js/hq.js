@@ -351,6 +351,8 @@ async function handlePhotoClick(projectId, teamId) {
   
   let teamUploads = uploadsCache[teamId];
   console.log("[HQ] Cache check:", teamUploads);
+  teamUploads = mergeTeamUploads(teamId, teamUploads || {});
+  console.log("[HQ] Cache normalized:", teamUploads);
   
   if (!teamUploads || Object.keys(teamUploads).length === 0) {
     console.log("[HQ] Fetching current uploads...");
@@ -358,10 +360,8 @@ async function handlePhotoClick(projectId, teamId) {
     console.log("[HQ] Current uploads:", teamUploads);
     
     if (teamUploads && Object.keys(teamUploads).length > 0) {
-      uploadsCache[teamId] = {
-        ...(uploadsCache[teamId] || {}),
-        ...teamUploads,
-      };
+      teamUploads = mergeTeamUploads(teamId, teamUploads);
+      console.log("[HQ] Cache after merging current uploads:", uploadsCache[teamId]);
     }
   }
   
@@ -371,10 +371,8 @@ async function handlePhotoClick(projectId, teamId) {
     console.log("[HQ] Legacy uploads:", teamUploads);
     
     if (teamUploads && Object.keys(teamUploads).length > 0) {
-      uploadsCache[teamId] = {
-        ...(uploadsCache[teamId] || {}),
-        ...teamUploads,
-      };
+      teamUploads = mergeTeamUploads(teamId, teamUploads);
+      console.log("[HQ] Cache after merging legacy uploads:", uploadsCache[teamId]);
     }
   }
   
@@ -439,7 +437,7 @@ async function fetchCurrentUploads(projectId, teamId) {
   
   try {
     const snapshot = await get(ref(db, path));
-    const data = snapshot.val() || {};
+    const data = normalizeMissionKeys(snapshot.val() || {});
     console.log(`[HQ] Data from ${path}:`, data);
     if (Object.keys(data).length > 0) return data;
     // 프로젝트가 다르게 저장된 경우 'default'로 폴백
@@ -447,7 +445,7 @@ async function fetchCurrentUploads(projectId, teamId) {
       const fallbackPath = `uploads_meta/default/${teamId}`;
       console.log(`[HQ] Primary empty. Trying fallback: ${fallbackPath}`);
       const fallbackSnap = await get(ref(db, fallbackPath));
-      const fallback = fallbackSnap.val() || {};
+      const fallback = normalizeMissionKeys(fallbackSnap.val() || {});
       console.log(`[HQ] Data from ${fallbackPath}:`, fallback);
       return fallback;
     }
@@ -491,6 +489,18 @@ function normalizeUploadsMap(map = {}) {
     if (!missions || typeof missions !== "object") return;
     normalized[teamId] = normalizeMissionKeys(missions);
   });
+  return normalized;
+}
+
+function mergeTeamUploads(teamId, incoming = {}) {
+  const current = uploadsCache[teamId] && typeof uploadsCache[teamId] === "object" ? uploadsCache[teamId] : {};
+  if (!incoming || typeof incoming !== "object") {
+    uploadsCache[teamId] = normalizeMissionKeys(current);
+    return uploadsCache[teamId];
+  }
+  const merged = { ...current, ...incoming };
+  const normalized = normalizeMissionKeys(merged);
+  uploadsCache[teamId] = normalized;
   return normalized;
 }
 
