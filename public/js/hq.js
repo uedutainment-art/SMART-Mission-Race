@@ -277,7 +277,7 @@ function refreshPhotoStatuses(projectId, board) {
 }
 
 function computePhotoStatus(projectId, teamId) {
-  const teamUploads = uploadsCache[teamId];
+  const teamUploads = mergeTeamUploads(teamId, uploadsCache[teamId]);
   console.log(`[HQ] computePhotoStatus for ${teamId}:`, teamUploads);
   if (!teamUploads) {
     console.log(`[HQ] No uploads found for ${teamId}, returning 'default'`);
@@ -519,6 +519,11 @@ function normalizeMissionKeys(missions = {}) {
   return normalized;
 }
 
+function extractMissionNumber(key) {
+  const match = String(key || "").match(/\d+/);
+  return match ? Number(match[0]) : 0;
+}
+
 function resetTeamMissions(projectId, teamId) {
   const missionRef = ref(db, `projects/${projectId}/teams/${teamId}/missions`);
   return set(missionRef, createDefaultMissionState(missionTotal));
@@ -559,9 +564,12 @@ function openPhotoModal(projectId, teamId, missions) {
   console.log("[HQ] Normalized missions:", normalizedMissions);
   console.log("[HQ] Mission keys:", Object.keys(normalizedMissions));
   
-  const missionKeys = Object.keys(normalizedMissions)
-    .filter((key) => key.startsWith("mission_"))
-    .sort((a, b) => Number(a.split("_")[1]) - Number(b.split("_")[1]));
+  let missionKeys = Object.keys(normalizedMissions);
+  const strictMissionKeys = missionKeys.filter((key) => key.startsWith("mission_"));
+  if (strictMissionKeys.length > 0) {
+    missionKeys = strictMissionKeys;
+  }
+  missionKeys = missionKeys.sort((a, b) => Number(extractMissionNumber(a)) - Number(extractMissionNumber(b)));
 
   console.log("[HQ] Filtered mission_ keys:", missionKeys);
 
