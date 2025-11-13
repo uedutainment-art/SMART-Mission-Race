@@ -7,19 +7,20 @@ export async function downloadFile(url, fileName, storagePath) {
 
   if (storagePath) {
     const ok = await downloadFromStorage(storagePath, fileName, tried);
-    if (ok) return;
+    if (ok) return true;
   }
 
   const derivedPath = deriveStoragePath(url);
   if (derivedPath && !tried.has(derivedPath)) {
     const ok = await downloadFromStorage(derivedPath, fileName, tried);
-    if (ok) return;
+    if (ok) return true;
   }
 
   const fetched = await downloadViaFetch(finalUrl, fileName);
-  if (fetched) return;
-
+  if (fetched) return true;
+  
   downloadViaLink(finalUrl, fileName);
+  return false;
 }
 
 async function downloadFromStorage(path, fileName, tried) {
@@ -52,13 +53,12 @@ async function downloadViaFetch(url, fileName) {
 }
 
 function downloadViaLink(url, fileName) {
-  const link = document.createElement("a");
-  link.href = url;
-  if (fileName) link.download = fileName;
-  link.rel = "noopener";
-  document.body.appendChild(link);
-  link.click();
-  setTimeout(() => link.remove(), 0);
+  console.warn("downloadFile falling back to iframe navigation", url);
+  const iframe = document.createElement("iframe");
+  iframe.style.display = "none";
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  setTimeout(() => iframe.remove(), 60000);
 }
 
 function triggerBlobDownload(blob, fileName) {

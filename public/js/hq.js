@@ -649,18 +649,18 @@ function openPhotoModal(projectId, teamId, missions) {
     const missionKey = missionSelect.value;
     requestRetry(projectId, teamId, missionKey);
   });
-  downloadAllBtn?.addEventListener("click", () => {
+  downloadAllBtn?.addEventListener("click", async () => {
     const missionKey = missionSelect.value;
-    downloadMissionAssets(projectId, teamId, missionKey);
+    await downloadMissionAssets(projectId, teamId, missionKey);
   });
-  downloadSelectedBtn?.addEventListener("click", () => {
+  downloadSelectedBtn?.addEventListener("click", async () => {
     const missionKey = missionSelect.value;
     const selected = Array.from(currentPhotoContext.selectedByMission.get(missionKey) || []);
     if (!selected.length) {
       alert("다운로드할 사진을 선택하세요.");
       return;
     }
-    downloadMissionAssets(projectId, teamId, missionKey, selected);
+    await downloadMissionAssets(projectId, teamId, missionKey, selected);
   });
 
   missionSelect.value = missionKeys[missionKeys.length - 1];
@@ -903,7 +903,7 @@ async function requestRetry(projectId, teamId, missionKey) {
   }
 }
 
-function downloadMissionAssets(projectId, teamId, missionKey, slotsFilter = null) {
+async function downloadMissionAssets(projectId, teamId, missionKey, slotsFilter = null) {
   const missionSlots = uploadsCache[teamId]?.[missionKey];
   if (!missionSlots) {
     alert("다운로드할 파일이 없습니다.");
@@ -912,31 +912,31 @@ function downloadMissionAssets(projectId, teamId, missionKey, slotsFilter = null
   const missionId = missionKey.split("_")[1];
   const teamLabel = getTeamLabel(teamId);
   let hasFile = false;
-  let delay = 0;
   
-  Object.entries(missionSlots).forEach(([slotId, slot]) => {
+  const entries = Object.entries(missionSlots);
+  for (const [slotId, slot] of entries) {
     if (slotsFilter && slotsFilter.length && !slotsFilter.includes(slotId)) {
-      return;
+      continue;
     }
-    if (!slot?.url) return;
+    if (!slot?.url) continue;
     hasFile = true;
     const fileName = buildDownloadFileName(teamId, teamLabel, missionId, slotId, slot.url);
-    
-    // 브라우저 차단 방지를 위해 각 다운로드 사이에 지연 시간 추가
-    setTimeout(() => {
-      triggerDownload(slot, fileName);
-    }, delay);
-    delay += 500; // 500ms 간격으로 다운로드
-  });
+    await triggerDownload(slot, fileName);
+    await waitFor(400);
+  }
   
   if (!hasFile) {
     alert("다운로드할 파일이 없습니다.");
   }
 }
 
-function triggerDownload(slot, fileName) {
+async function triggerDownload(slot, fileName) {
   if (!slot) return;
-  downloadFile(slot.url, fileName, slot.path);
+  await downloadFile(slot.url, fileName, slot.path);
+}
+
+function waitFor(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function clampMissionTotal(value) {
