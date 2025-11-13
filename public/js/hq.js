@@ -554,17 +554,19 @@ function createDefaultMissionState(total = missionTotal) {
 
 function openPhotoModal(projectId, teamId, missions) {
   closePhotoModal();
+  const normalizedMissions = normalizeMissionKeys(missions || {});
   console.log("[HQ] openPhotoModal called with missions:", missions);
-  console.log("[HQ] Mission keys:", Object.keys(missions));
+  console.log("[HQ] Normalized missions:", normalizedMissions);
+  console.log("[HQ] Mission keys:", Object.keys(normalizedMissions));
   
-  const missionKeys = Object.keys(missions)
+  const missionKeys = Object.keys(normalizedMissions)
     .filter((key) => key.startsWith("mission_"))
     .sort((a, b) => Number(a.split("_")[1]) - Number(b.split("_")[1]));
 
   console.log("[HQ] Filtered mission_ keys:", missionKeys);
 
   if (missionKeys.length === 0) {
-    console.error("[HQ] No mission_ keys found in:", missions);
+    console.error("[HQ] No mission_ keys found in:", normalizedMissions);
     alert("업로드된 사진이 없습니다.");
     return;
   }
@@ -629,7 +631,7 @@ function openPhotoModal(projectId, teamId, missions) {
     teamId,
     teamName,
     missionSelect,
-    missions,
+    missions: normalizedMissions,
     thumbsEl,
     previewEl,
     approveBtn,
