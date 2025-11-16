@@ -1,102 +1,11 @@
-import { storage, sRef, getBlob } from "./firebase_config.js";
-
-export async function downloadFile(url, fileName, storagePath) {
+export function downloadFile(url, fileName) {
   const finalUrl = appendDisposition(url, fileName);
-
-  const tried = new Set();
-
-  if (storagePath) {
-    const ok = await downloadFromStorage(storagePath, fileName, tried);
-    if (ok) return true;
-  }
-
-  const derivedPath = deriveStoragePath(url);
-  if (derivedPath && !tried.has(derivedPath)) {
-    const ok = await downloadFromStorage(derivedPath, fileName, tried);
-    if (ok) return true;
-  }
-
-  const fetched = await downloadViaFetch(finalUrl, fileName);
-  if (fetched) return true;
-  
-  downloadViaLink(finalUrl, fileName);
-  return false;
-}
-
-async function downloadFromStorage(path, fileName, tried) {
-  try {
-    const ref = sRef(storage, path);
-    const blob = await getBlob(ref);
-    triggerBlobDownload(blob, fileName);
-    tried?.add(path);
-    return true;
-  } catch (error) {
-    console.warn("downloadFile storage path failed", path, error);
-    tried?.add(path);
-    return false;
-  }
-}
-
-async function downloadViaFetch(url, fileName) {
-  try {
-    const response = await fetch(url, { mode: "cors" });
-    if (!response.ok) {
-      throw new Error(`Failed to fetch file: ${response.status}`);
-    }
-    const blob = await response.blob();
-    triggerBlobDownload(blob, fileName);
-    return true;
-  } catch (error) {
-    console.warn("downloadFile fetch fallback failed", error);
-    return false;
-  }
-}
-
-function downloadViaLink(url, fileName) {
-  console.warn("downloadFile falling back to iframe navigation", url);
-  const iframe = document.createElement("iframe");
-  iframe.style.display = "none";
-  iframe.src = url;
-  document.body.appendChild(iframe);
-  setTimeout(() => iframe.remove(), 60000);
-}
-
-function triggerBlobDownload(blob, fileName) {
-  const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.href = objectUrl;
+  link.href = finalUrl;
   if (fileName) link.download = fileName;
   document.body.appendChild(link);
   link.click();
-  setTimeout(() => {
-    link.remove();
-    URL.revokeObjectURL(objectUrl);
-  }, 0);
-}
-
-function deriveStoragePath(url) {
-  try {
-    const parsed = new URL(url);
-    let path = parsed.pathname;
-    const oIndex = path.indexOf("/o/");
-    if (oIndex !== -1) {
-      path = path.substring(oIndex + 3);
-    } else {
-      const parts = path.split("/");
-      const idx = parts.indexOf("o");
-      if (idx !== -1 && idx + 1 < parts.length) {
-        path = parts.slice(idx + 1).join("/");
-      } else {
-        path = parts.slice(2).join("/");
-      }
-    }
-    path = decodeURIComponent(path);
-    if (!path) return null;
-    return path;
-  } catch (error) {
-    console.warn("Failed to derive storage path from url", url, error);
-    return null;
-  }
+  setTimeout(() => link.remove(), 0);
 }
 
 function appendDisposition(url, fileName) {

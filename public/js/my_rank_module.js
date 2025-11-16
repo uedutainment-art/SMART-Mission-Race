@@ -7,7 +7,7 @@ export function initMyRankModule({
   if (!element) return { update: () => {} };
 
   function render(rank = initialRank, total = totalTeams) {
-    element.textContent = `RANK ${rank} / ${total}`;
+    element.textContent = `Rank ${rank} / ${total}`;
   }
 
   render(initialRank, totalTeams);

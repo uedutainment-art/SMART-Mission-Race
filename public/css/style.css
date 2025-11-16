@@ -63,12 +63,20 @@ body {
 }
 
 .mission-hero img {
-  width: 88px;
-  height: 88px;
+  width: 120px;
+  max-width: 120px;
+  max-height: 120px;
   object-fit: contain;
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.2);
   background: rgba(0,0,0,0.35);
+}
+
+.mission-title-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
 }
 
 .mission-title {
@@ -76,6 +84,13 @@ body {
   font-weight: 700;
   text-align: center;
   color: #f8fafc;
+}
+
+.mission-subtitle {
+  font-size: 16px;
+  color: #cbd5f5;
+  min-height: 20px;
+  visibility: hidden;
 }
 
 /* ==============================
@@ -169,8 +184,9 @@ body {
 }
 
 .rank-item.my-team {
-  outline: 2px solid rgba(255, 107, 107, 0.9);
-  box-shadow: 0 0 24px rgba(255, 107, 107, 0.35);
+  outline: 2px solid rgba(76, 201, 240, 0.9);
+  box-shadow: 0 0 32px rgba(76, 201, 240, 0.4);
+  background: linear-gradient(135deg, rgba(76, 201, 240, 0.2), rgba(15, 23, 42, 0.95));
 }
 
 .rank-info {
@@ -179,6 +195,11 @@ body {
   gap: 10px;
   font-weight: 600;
   color: #f8fafc;
+}
+.rank-info .rank-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .rank-order {
@@ -206,11 +227,25 @@ body {
   background: rgba(205, 127, 50, 0.2);
   color: #f4a259;
 }
+.rank-item.my-team .rank-order {
+  background: rgba(76, 201, 240, 0.25);
+  color: #d9f6ff;
+}
 
 .rank-progress {
   font-weight: 700;
   color: #4cc9f0;
   font-size: 16px;
+}
+
+.rank-info .my-team-tag {
+  font-size: 11px;
+  background: rgba(76, 201, 240, 0.25);
+  border-radius: 999px;
+  padding: 2px 8px;
+  color: #c8f5ff;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
 }
 
 .rank-empty {
@@ -238,18 +273,51 @@ body {
 
 @keyframes teamPulse {
   0% {
-    box-shadow: 0 0 18px rgba(255, 107, 107, 0.4);
+    box-shadow: 0 0 18px rgba(76, 201, 240, 0.35);
   }
   50% {
     box-shadow: 0 0 32px rgba(255, 255, 255, 0.35);
   }
   100% {
-    box-shadow: 0 0 18px rgba(255, 107, 107, 0.4);
+    box-shadow: 0 0 18px rgba(76, 201, 240, 0.35);
   }
 }
 
 body.dashboard-page .rank-item.my-team {
   animation: teamPulse 1.4s ease-in-out infinite;
+}
+
+body.dashboard-locked .mission-grid,
+body.dashboard-locked .mission {
+  pointer-events: none;
+  filter: grayscale(0.4);
+  opacity: 0.7;
+}
+
+body.dashboard-locked #mission-panel {
+  pointer-events: none;
+}
+
+body.dashboard-locked .input-area,
+body.dashboard-locked .input-area input,
+body.dashboard-locked .input-area button {
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+#dashboardLockBanner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  color: #ffe4b5;
+  text-align: center;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  z-index: 1500;
 }
 
 /* ==============================
@@ -262,6 +330,9 @@ body.dashboard-page .rank-item.my-team {
   justify-content: center;
   align-content: center;
   margin-top: 10px;
+}
+.mission-grid.locked-grid {
+  pointer-events: none;
 }
 
 .mission {
@@ -334,6 +405,12 @@ body.dashboard-page .rank-item.my-team {
   margin: 0;
   font-size: 16px;
   color: #4cc9f0;
+}
+.qr-inline .qr-hint {
+  font-size: 13px;
+  color: #cbd5f5;
+  text-align: center;
+  line-height: 1.4;
 }
 .qr-inline #inlineQr {
   background: #fff;
@@ -444,6 +521,158 @@ button.primary {
 button.primary:hover {
   background: #2563eb;
 }
+.photo-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 9, 18, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1200;
+}
+
+.photo-overlay__card {
+  position: relative;
+  width: min(420px, 95vw);
+  background: #0f172a;
+  border-radius: 18px;
+  border: 1px solid rgba(76, 201, 240, 0.35);
+  padding: 26px 22px 30px;
+  text-align: center;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+}
+
+.photo-overlay__card h3 {
+  margin-top: 0;
+  margin-bottom: 6px;
+  color: #e2e8f0;
+  font-size: 20px;
+}
+
+.photo-overlay__close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: rgba(15, 23, 42, 0.9);
+  border: none;
+  color: #cbd5f5;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.photo-overlay__qr {
+  background: #fff;
+  padding: 12px;
+  border-radius: 12px;
+  width: 220px;
+  height: 220px;
+  margin: 18px auto 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.photo-overlay__hint {
+  color: #cbd5f5;
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 6px 0 0;
+}
+
+.photo-overlay__link {
+  display: inline-block;
+  margin-top: 14px;
+  color: #4cc9f0;
+  text-decoration: underline;
+  font-weight: 600;
+}
+.photo-upload-btn {
+  border: 1px solid rgba(76, 201, 240, 0.75);
+  background: transparent;
+  color: #4cc9f0;
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.photo-upload-btn:hover {
+  background: rgba(76, 201, 240, 0.15);
+  color: #e0f2ff;
+}
+
+.completion-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1400;
+  padding: 16px;
+}
+
+.completion-modal__card {
+  position: relative;
+  width: min(360px, 90vw);
+  background: linear-gradient(135deg, #0f172a, #1b2845);
+  border-radius: 18px;
+  border: 1px solid rgba(255, 214, 102, 0.35);
+  padding: 32px 28px 26px;
+  text-align: center;
+  color: #f8fafc;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.5);
+}
+
+.completion-modal__close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(15, 23, 42, 0.9);
+  color: #f8fafc;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.completion-modal__badge {
+  font-size: 42px;
+  margin: 0 0 10px;
+}
+
+.completion-modal__title {
+  font-size: 22px;
+  margin: 0;
+}
+
+.completion-modal__text {
+  margin: 10px 0 18px;
+  font-size: 15px;
+  color: #e2e8f0;
+}
+
+.completion-modal__button {
+  border: none;
+  background: #facc15;
+  color: #0f172a;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.completion-modal__button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(250, 204, 21, 0.4);
+}
 
 /* ==============================
    우측 상태 + 채팅
@@ -455,11 +684,13 @@ button.primary:hover {
   margin-bottom: 16px;
 }
 .team-name-banner {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 800;
   color: #fde68a;
   margin-bottom: 6px;
   text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
 }
 .time-panel {
   display: flex;
@@ -476,7 +707,7 @@ button.primary:hover {
   margin: 0;
 }
 .rank-label {
-  font-size: 44px;
+  font-size: 35px;
   font-weight: 800;
   color: #4cc9f0;
   text-align: right;
@@ -586,6 +817,11 @@ button.primary:hover {
   color: white;
   font-weight: 600;
   cursor: pointer;
+}
+.input-area.disabled input,
+.input-area.disabled button {
+  pointer-events: none;
+  opacity: 0.6;
 }
 
 @keyframes pulse {

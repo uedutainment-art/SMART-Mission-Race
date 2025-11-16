@@ -9,7 +9,10 @@
 
 <body>
   <div class="hq-header">
-    <h1 id="hqProjectTitle">SMART Mission Race HQ</h1>
+    <div>
+      <h1 id="hqProjectTitle">SMART Mission Race HQ</h1>
+      <p id="hqProjectSubtitle" class="hq-subtitle"></p>
+    </div>
   </div>
   <div class="hq-layout">
     <aside class="left-panel">
@@ -35,10 +38,15 @@
         <div class="timer" id="hqRemainTime"></div>
         <div class="timer-note" id="hqTimerNote"></div>
       </div>
+      <div id="hqFinishList" class="finish-list">
+        <p class="finish-title">완료 팀</p>
+        <div class="finish-list__body"></div>
+      </div>
       <div id="hqChat" class="chatbox"></div>
     </aside>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script type="module" src="./js/hq.js"></script>
 </body>
 </html>

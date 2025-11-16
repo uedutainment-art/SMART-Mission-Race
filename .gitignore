@@ -46,6 +46,10 @@ build/Release
 
 # Dependency directories
 node_modules/
+test_temp.txt
+public/admin_qr.html
+public/js/admin_qr.js
+public/js/admin_qr_app.js
 
 # Optional npm cache directory
 .npm

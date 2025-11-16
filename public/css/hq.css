@@ -25,6 +25,12 @@ body {
   color: #4cc9f0;
 }
 
+.hq-subtitle {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #cbd5f5;
+}
+
 .left-panel {
   background: rgba(20, 30, 50, 0.9);
   border-right: 2px solid #222;
@@ -258,40 +264,79 @@ body {
   width: 100%;
 }
 
-.photo-status,
-.chat-alert-btn {
+.team-actions button {
   width: 100%;
-  padding: 4px 6px;
-  border-radius: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
   border: none;
   cursor: pointer;
   font-size: 11px;
   font-weight: 600;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.team-actions .btn-label {
+  pointer-events: none;
+}
+
+.btn-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  padding: 2px 5px;
+  background: #ff1744;
+  color: #fff;
+  font-size: 9px;
+  border-radius: 999px;
+  font-weight: 700;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.35);
+}
+
+.btn-badge.hidden {
+  display: none;
 }
 
 .photo-status {
-  background: #333;
+  background: #757575;
   color: #fff;
+  opacity: 0.7;
 }
 
-.photo-status.new {
-  background: #f43f5e;
-  animation: blink 1s infinite;
+.photo-status.photo-new {
+  background: #ff8a00;
+  border: 2px solid #ffb347;
+  animation: photo-blink 2s infinite;
+  color: #1a1a1a;
+  box-shadow: 0 0 10px rgba(255, 138, 0, 0.5);
+  opacity: 1;
 }
 
-.photo-status.done {
-  background: #22c55e;
+.photo-status.photo-done {
+  background: #4db6ac;
+  border: none;
+  color: #052e16;
+  opacity: 1;
+  box-shadow: none;
+  animation: none;
 }
 
 .chat-alert-btn {
-  background: rgba(255, 255, 255, 0.12);
+  background: #ff5f8a;
   color: #fff;
+  opacity: 0.4;
 }
 
-.chat-alert-btn.alert {
-  background: #f43f5e;
-  animation: pulse 1s infinite alternate;
+.chat-alert-btn.chat-new {
+  background: #ff85a2;
+  color: #fff;
+  animation: chat-pulse 1.5s infinite;
+  box-shadow: 0 0 10px rgba(255, 133, 162, 0.5);
+  opacity: 1;
 }
 
 .hq-mission-grid {
@@ -302,31 +347,42 @@ body {
 }
 
 .hq-mission {
-  background: #4b5563;
-  color: #0f172a;
-  border-radius: 8px;
+  background: rgba(60, 64, 67, 0.9);
+  border-radius: 10px;
   padding: 4px 4px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  color: #e0e0e0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
 }
 
 .hq-mission--code,
-.hq-mission--mission {
-  background: #2563eb;
-  color: #fff;
+.hq-mission--mission,
+.hq-mission--locked {
+  background: rgba(60, 64, 67, 0.9);
+  color: #f2f2f2;
 }
 
 .hq-mission--done {
-  background: #22c55e;
-  color: #051923;
+  background: #26a69a;
+  color: #fff;
+  border: none;
+  box-shadow: none;
 }
-.hq-mission--locked {
-  background: #4b5563;
-  color: #e2e8f0;
+
+.hq-mission.mission-active-code {
+  border: 2px solid #1a73e8;
+  box-shadow: 0 0 8px rgba(26, 115, 232, 0.7);
+}
+
+.hq-mission.mission-active-mission {
+  border: 2px solid #26a69a;
+  box-shadow: 0 0 8px rgba(38, 166, 154, 0.7);
 }
 
 .hq-mission-bubbles {
@@ -342,18 +398,33 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #94a3b8;
-  color: #0f172a;
-}
-
-.hq-bubble.active {
-  background: #2563eb;
-  color: #f8fafc;
+  border: 1px solid rgba(189, 189, 189, 0.4);
+  background: transparent;
+  color: #bdbdbd;
+  box-shadow: none;
 }
 
 .hq-bubble.done {
-  background: #22c55e;
+  border-color: rgba(255, 255, 255, 0.8);
   color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.hq-mission--done .hq-bubble {
+  border-color: rgba(255, 255, 255, 0.8);
+  color: #fff;
+}
+
+.hq-mission.mission-active-code .bubble-code {
+  border-color: #1a73e8;
+  box-shadow: 0 0 6px rgba(26, 115, 232, 0.8);
+  color: #1a73e8;
+}
+
+.hq-mission.mission-active-mission .bubble-mission {
+  border-color: #26a69a;
+  box-shadow: 0 0 6px rgba(38, 166, 154, 0.8);
+  color: #26a69a;
 }
 
 .right-panel {
@@ -394,6 +465,56 @@ body {
   font-size: 13px;
   color: #ff7676;
   min-height: 18px;
+}
+
+.finish-list {
+  display: none;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.25);
+}
+
+.finish-list.finish-list--visible {
+  display: block;
+}
+
+.finish-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #cbd5f5;
+}
+
+.finish-list__body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.finish-team {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #e2e8f0;
+}
+
+.finish-team__time {
+  font-variant-numeric: tabular-nums;
+  color: #ffd966;
+  font-weight: 600;
+}
+
+.finish-empty {
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+  margin: 4px 0;
 }
 
 .chatbox {
@@ -689,22 +810,36 @@ body {
   gap: 10px;
 }
 
-@keyframes blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
-}
-
 @keyframes pulse {
   0% {
     opacity: 1;
   }
   100% {
     opacity: 0.5;
+  }
+}
+
+@keyframes photo-blink {
+  0% {
+    filter: brightness(100%);
+  }
+  50% {
+    filter: brightness(130%);
+  }
+  100% {
+    filter: brightness(100%);
+  }
+}
+
+@keyframes chat-pulse {
+  0% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0.4;
   }
 }
 
@@ -752,6 +887,11 @@ body {
 }
 .hq-mission-number {
   font-size: 16px;
+  color: #f5f5f5;
+}
+
+.hq-mission--done .hq-mission-number {
+  color: #fff;
 }
 .photo-thumb__media video {
   width: 100%;

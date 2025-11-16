@@ -14,19 +14,21 @@ export function initChatModule({
   const messagesId = `${containerId}-messages`;
   const inputId = `${containerId}-input`;
   const buttonId = `${containerId}-send`;
+  const formId = `${containerId}-form`;
 
   container.innerHTML = `
     <div class="chatbox">
       <div class="messages" id="${messagesId}"></div>
-      <div class="input-area">
-        <input id="${inputId}" placeholder="메시지를 입력하세요..." />
-        <button id="${buttonId}">전송</button>
-      </div>
+      <form class="input-area" id="${formId}">
+        <input id="${inputId}" placeholder="메시지를 입력하세요..." autocomplete="off" />
+        <button id="${buttonId}" type="submit">전송</button>
+      </form>
     </div>`;
 
   const messagesEl = container.querySelector(`#${messagesId}`);
   const inputEl = container.querySelector(`#${inputId}`);
   const buttonEl = container.querySelector(`#${buttonId}`);
+  const formEl = container.querySelector(`#${formId}`);
 
   const messageKeys = new Set();
 
@@ -80,12 +82,9 @@ export function initChatModule({
     inputEl.value = "";
   }
 
-  buttonEl.addEventListener("click", sendMessage);
-  inputEl.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      sendMessage();
-    }
+  formEl.addEventListener("submit", (event) => {
+    event.preventDefault();
+    sendMessage();
   });
 
   appendMessage({
@@ -94,7 +93,15 @@ export function initChatModule({
     scope: "team",
   });
 
+  function disableChat() {
+    inputEl.disabled = true;
+    buttonEl.disabled = true;
+    inputEl.placeholder = "시간이 종료되었습니다.";
+    formEl?.classList.add("disabled");
+  }
+
   return {
     send: sendMessage,
+    disable: disableChat,
   };
 }

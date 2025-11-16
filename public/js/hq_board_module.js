@@ -1,5 +1,14 @@
 const DEFAULT_TOTAL_MISSIONS = 9;
 
+function normalizePhotoState(value) {
+  if (!value) return { status: "default", count: 0 };
+  if (typeof value === "string") return { status: value, count: 0 };
+  return {
+    status: value.status || "default",
+    count: Number(value.count) || 0,
+  };
+}
+
 function stageClassName(stage) {
   switch (stage) {
     case "done":
@@ -23,9 +32,9 @@ function bubbleMarkup(stage, panel) {
     bubbles.code.push("done");
     bubbles.mission.push("done");
   } else if (panel === "code") {
-    bubbles.code.push("active");
+    bubbles.code.push("active-code");
   } else if (panel === "mission") {
-    bubbles.mission.push("active");
+    bubbles.mission.push("active-mission");
   }
 
   return `
@@ -39,9 +48,9 @@ function bubbleMarkup(stage, panel) {
 function photoStatusLabel(status = "default") {
   switch (status) {
     case "new":
-      return { text: "Photo", className: "photo-status new" };
+      return { text: "Photo", className: "photo-status photo-new" };
     case "done":
-      return { text: "Photo ✓", className: "photo-status done" };
+      return { text: "Photo ✓", className: "photo-status photo-done" };
     default:
       return { text: "Photo", className: "photo-status" };
   }
@@ -75,21 +84,38 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
       const missions = team.missions ?? {};
       const completed = team.missionsCompleted ?? 0;
       const number = team.number ?? index + 1;
-      const alias = team.alias || team.label || team.name || "";
-      const displayName = alias ? `${number}팀 ${alias}` : `${number}팀`;
+      const displayName =
+        team.label ||
+        (Number.isFinite(number) ? `${number}팀` : team.id || "TEAM");
 
       state.chatUnread[team.id] = state.chatUnread[team.id] ?? 0;
-      state.photoStatus[team.id] = team.photoStatus ?? state.photoStatus[team.id] ?? "default";
+      state.photoStatus[team.id] = normalizePhotoState(
+        state.photoStatus[team.id] ?? team.photoStatus
+      );
 
-      const { text: photoText, className: photoClass } = photoStatusLabel(state.photoStatus[team.id]);
+      const photoState = normalizePhotoState(state.photoStatus[team.id]);
+      const { text: photoText, className: photoClass } = photoStatusLabel(photoState.status);
+      const photoBadgeVisible = photoState.status === "new" && photoState.count > 0;
+      const photoBadgeMarkup = `<span class="btn-badge${photoBadgeVisible ? "" : " hidden"}">${
+        photoState.count || 0
+      }</span>`;
+      const chatCount = state.chatUnread[team.id] || 0;
+      const chatBadgeMarkup = `<span class="btn-badge${chatCount > 0 ? "" : " hidden"}">${chatCount}</span>`;
+      const chatButtonClass = `chat-alert-btn${chatCount > 0 ? " chat-new" : ""}`;
 
       const tiles = [];
       for (let i = 1; i <= total; i++) {
         const missionData = missions[i] || {};
         const stage = missionData.stage || (i === 1 ? "code" : "locked");
         const panel = missionData.panel || null;
+        const tileClasses = ["hq-mission", stageClassName(stage)];
+        if (stage !== "done" && panel === "code") {
+          tileClasses.push("mission-active-code");
+        } else if (stage !== "done" && panel === "mission") {
+          tileClasses.push("mission-active-mission");
+        }
         tiles.push(`
-          <div class="hq-mission ${stageClassName(stage)}">
+          <div class="${tileClasses.join(" ")}">
             ${bubbleMarkup(stage, panel)}
             <div class="hq-mission-number">${i}</div>
           </div>
@@ -102,9 +128,13 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
             <div class="team-name">${displayName}</div>
             <div class="progress-info">${completed}/${total}</div>
             <div class="team-actions">
-              <button class="${photoClass}" data-team-id="${team.id}">${photoText}</button>
-              <button class="chat-alert-btn${state.chatUnread[team.id] > 0 ? " alert" : ""}" data-team-id="${team.id}">
-                ${state.chatUnread[team.id] > 0 ? `Chat (${state.chatUnread[team.id]})` : "Chat"}
+              <button class="${photoClass}" data-team-id="${team.id}">
+                <span class="btn-label">${photoText}</span>
+                ${photoBadgeMarkup}
+              </button>
+              <button class="${chatButtonClass}" data-team-id="${team.id}">
+                <span class="btn-label">Chat</span>
+                ${chatBadgeMarkup}
               </button>
             </div>
           </div>
@@ -124,8 +154,10 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
       button.addEventListener("click", () => {
         const teamId = button.dataset.teamId;
         state.chatUnread[teamId] = 0;
-        button.classList.remove("alert");
-        button.textContent = "Chat";
+        button.classList.remove("chat-new");
+        const labelEl = button.querySelector(".btn-label");
+        if (labelEl) labelEl.textContent = "Chat";
+        setButtonBadge(button, 0);
         if (typeof state.chatHandler === "function") {
           state.chatHandler(teamId);
         }
@@ -149,14 +181,17 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
       state.teams = Array.isArray(nextTeams) ? [...nextTeams] : [];
       render();
     },
-    setPhotoStatus(teamId, status = "default") {
-      state.photoStatus[teamId] = status;
+    setPhotoStatus(teamId, payload = { status: "default", count: 0 }) {
+      const normalized = normalizePhotoState(payload);
+      state.photoStatus[teamId] = normalized;
       const button = container.querySelector(`.photo-status[data-team-id="${teamId}"]`);
       if (button) {
-        const { text, className } = photoStatusLabel(status);
+        const { text, className } = photoStatusLabel(normalized.status);
         button.className = className;
         button.dataset.teamId = teamId;
-        button.textContent = text;
+        const labelEl = button.querySelector(".btn-label");
+        if (labelEl) labelEl.textContent = text;
+        setButtonBadge(button, normalized.status === "new" ? normalized.count : 0);
       }
     },
     setChatAlert(teamId, unreadCount = 0) {
@@ -165,12 +200,11 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
       const button = container.querySelector(`.chat-alert-btn[data-team-id="${teamId}"]`);
       if (button) {
         if (safeCount > 0) {
-          button.classList.add("alert");
-          button.textContent = `Chat (${safeCount})`;
+          button.classList.add("chat-new");
         } else {
-          button.classList.remove("alert");
-          button.textContent = "Chat";
+          button.classList.remove("chat-new");
         }
+        setButtonBadge(button, safeCount);
       }
     },
     setChatHandler(handler) {
@@ -180,4 +214,20 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
       state.photoHandler = handler;
     },
   };
+}
+
+function setButtonBadge(button, count = 0) {
+  if (!button) return;
+  let badge = button.querySelector(".btn-badge");
+  if (count > 0) {
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "btn-badge";
+      button.appendChild(badge);
+    }
+    badge.textContent = count;
+    badge.classList.remove("hidden");
+  } else if (badge) {
+    badge.classList.add("hidden");
+  }
 }

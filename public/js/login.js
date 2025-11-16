@@ -10,8 +10,12 @@ const teamPasswordInput = document.getElementById("teamPasswordInput");
 const teamButton = document.getElementById("teamButton");
 const statusEl = document.getElementById("loginStatus");
 const projectProgram = document.getElementById("projectProgram");
-const projectDates = document.getElementById("projectDates");
+const projectSubtitleEl = document.getElementById("projectSubtitle");
 const projectLogo = document.getElementById("projectLogo");
+const searchParams = new URLSearchParams(window.location.search);
+const presetProjectId = (searchParams.get("project") || "").trim();
+let presetHandled = false;
+const bodyEl = document.body;
 
 const PROJECTS_PATH = "projects";
 
@@ -20,8 +24,32 @@ let activeProjectId = null;
 let activeProject = null;
 let teamNameTouched = false;
 
+function resolveOfficialTeamName(profile = {}, teamId = "Team1", teamNumber = 1) {
+  return (
+    profile.teamDisplayName ||
+    profile.officialTeamName ||
+    profile.displayName ||
+    profile.name ||
+    (Number.isFinite(teamNumber) && teamNumber > 0 ? `${teamNumber}팀` : teamId)
+  );
+}
+
 clearTeamSession();
 showMasterStep();
+loadProjects().then(() => {
+  if (presetProjectId && !presetHandled) {
+    autoSelectProjectById(presetProjectId);
+  }
+});
+
+function setBodyBackground(url = "") {
+  if (url) {
+    const safeUrl = url.replace(/"/g, '\\"');
+    bodyEl.style.backgroundImage = `url("${safeUrl}")`;
+  } else {
+    bodyEl.style.backgroundImage = "";
+  }
+}
 
 masterButton.addEventListener("click", handleMasterUnlock);
 masterInput.addEventListener("keydown", (event) => {
@@ -87,7 +115,7 @@ async function handleMasterUnlock() {
   activeProjectId = projectId;
   activeProject = project;
   updateProjectDisplay(project);
-  setStatus("프로젝트 확인 완료. 팀 비밀번호를 입력하세요.");
+  setStatus("");
   showTeamStep();
 }
 
@@ -109,23 +137,33 @@ async function handleTeamLogin() {
   const { teamId, teamProfile } = match;
   const aliasInput = teamNameInput.value.trim();
   const teamNumber = teamProfile.number || Number(teamId.replace("Team", "")) || 0;
-  const alias = aliasInput || teamProfile.name || "";
+  const officialName = resolveOfficialTeamName(teamProfile, teamId, teamNumber);
+  const alias = aliasInput || teamProfile.nickname || "";
 
   await update(ref(db, `${PROJECTS_PATH}/${activeProjectId}/teams/${teamId}/profile`), {
-    name: alias,
+    nickname: alias,
     number: teamNumber,
   });
+
+  const educationAt = activeProject.meta?.educationAt || activeProject.meta?.startAt || null;
+  const countdownStart = educationAt ? Date.now() : activeProject.meta?.startAt || null;
+  const countdownEnd = educationAt || activeProject.meta?.endAt || null;
 
   storeTeamSession({
     projectId: activeProjectId,
     projectName: activeProject.meta?.name || activeProjectId,
+    projectSubtitle: activeProject.meta?.subtitle || "",
+    projectBackground: activeProject.meta?.backgroundUrl || "",
+    projectEducationAt: educationAt,
     projectTitle: activeProject.meta?.name || activeProjectId,
     projectLogo: activeProject.meta?.logoUrl || activeProject.meta?.dashboardLogoUrl || activeProject.meta?.loginLogoUrl || "",
-    projectStartAt: activeProject.meta?.startAt || null,
-    projectEndAt: activeProject.meta?.endAt || null,
+    projectStartAt: countdownStart,
+    projectEndAt: countdownEnd,
     missionTotal: Number(activeProject.meta?.missionTotal) || 9,
     teamId,
-    teamName: alias,
+    teamName: officialName,
+    teamOfficialName: officialName,
+    teamNickname: alias,
     teamNumber,
     teamTotal: Number(activeProject.meta?.teamCount) || Object.keys(activeProject.teams || {}).length || 10,
   });
@@ -142,20 +180,36 @@ function setStatus(message) {
 
 function updateProjectDisplay(project) {
   if (!project) {
-    projectLogo.classList.add("hidden");
-    projectLogo.src = "";
-    projectProgram.textContent = "프로젝트 정보를 입력하세요.";
-    projectDates.textContent = "";
+    if (projectLogo) {
+      projectLogo.classList.add("hidden");
+      projectLogo.src = "";
+    }
+    if (projectProgram) {
+      projectProgram.textContent = "프로젝트 정보를 입력하세요.";
+    }
+    if (projectSubtitleEl) {
+      projectSubtitleEl.textContent = "";
+      projectSubtitleEl.classList.add("hidden");
+    }
+    setBodyBackground("");
     return;
   }
   const meta = project.meta || {};
-  projectLogo.src = meta.logoUrl || meta.dashboardLogoUrl || meta.loginLogoUrl || "";
-  projectLogo.classList.toggle("hidden", !projectLogo.src);
-  projectProgram.textContent = meta.name || "SMART Mission Race";
-  const start = meta.startAt ? new Date(meta.startAt).toLocaleDateString() : "";
-  const end = meta.endAt ? new Date(meta.endAt).toLocaleDateString() : "";
-  projectDates.textContent = start && end ? `${start} ~ ${end}` : "";
+  if (projectLogo) {
+    projectLogo.src = meta.logoUrl || meta.dashboardLogoUrl || meta.loginLogoUrl || "";
+    projectLogo.classList.toggle("hidden", !projectLogo.src);
+  }
+  if (projectProgram) {
+    projectProgram.textContent = meta.name || "SMART Mission Race";
+  }
+  if (projectSubtitleEl) {
+    const subtitle = meta.subtitle || "";
+    projectSubtitleEl.textContent = subtitle;
+    projectSubtitleEl.classList.toggle("hidden", !subtitle);
+  }
+  setBodyBackground(meta.backgroundUrl || "");
 }
+
 
 function findActiveTeamByPassword(password = "") {
   if (!activeProject) return null;
@@ -191,7 +245,7 @@ function handleTeamPasswordPreview() {
   if (match) {
     updateProjectDisplay(activeProject);
     if (!teamNameTouched || !teamNameInput.value.trim()) {
-      teamNameInput.value = match.teamProfile.name || "";
+      teamNameInput.value = match.teamProfile.nickname || "";
       teamNameTouched = false;
     }
     setStatus("");
@@ -201,6 +255,36 @@ function handleTeamPasswordPreview() {
       teamNameInput.value = "";
     }
   }
+}
+
+async function autoSelectProjectById(projectId = "") {
+  const projects = await loadProjects();
+  const resolvedId = findProjectIdentifier(projects, projectId);
+  if (!resolvedId) return;
+  const project = projects?.[resolvedId];
+  if (!project) return;
+  activeProjectId = resolvedId;
+  activeProject = project;
+  updateProjectDisplay(project);
+  setStatus("");
+  presetHandled = true;
+  showTeamStep();
+}
+
+function findProjectIdentifier(projects = {}, identifier = "") {
+  const raw = (identifier || "").trim();
+  if (!raw) return null;
+  if (Object.prototype.hasOwnProperty.call(projects, raw)) {
+    return raw;
+  }
+  const lower = raw.toLowerCase();
+  const keyMatch = Object.keys(projects).find((id) => id.toLowerCase() === lower);
+  if (keyMatch) return keyMatch;
+  const codeMatch = Object.keys(projects).find((id) => {
+    const code = (projects[id]?.meta?.projectCode || "").trim().toLowerCase();
+    return code && code === lower;
+  });
+  return codeMatch || null;
 }
 
 loadProjects();

@@ -12,21 +12,30 @@ document.addEventListener("DOMContentLoaded", () => {
   const {
     teamId,
     teamName,
+    teamNickname,
     teamNumber,
     teamTotal,
     projectId,
     projectName,
+    projectSubtitle = "",
     projectLogo,
-    projectStartAt,
-    projectEndAt,
+    projectStartAt = null,
+    projectEndAt = null,
+    projectEducationAt = null,
     missionTotal: sessionMissionTotal,
   } = session;
-  const teamLabel = buildTeamLabel(teamNumber, teamName);
+  const teamLabel = buildTeamLabel(teamName, teamNickname, teamNumber);
   const missionTotal = sessionMissionTotal || 9;
+  const missionAreaEl = document.getElementById("missionArea");
 
   const titleEl = document.getElementById("eventName");
   if (titleEl) {
     titleEl.textContent = projectName || "SMART Mission Race";
+  }
+  const subtitleEl = document.getElementById("eventSubtitle");
+  if (subtitleEl) {
+    subtitleEl.textContent = projectSubtitle || "";
+    subtitleEl.style.visibility = projectSubtitle ? "visible" : "hidden";
   }
   const logoImg = document.getElementById("missionLogo");
   if (logoImg && projectLogo) {
@@ -58,6 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
     highlightTeam: teamId,
     projectId,
     missionTotal,
+    includeNickname: true,
     onChange: (sorted) => {
       if (!Array.isArray(sorted)) return;
       const myIndex = sorted.findIndex((team) => team.id === teamId);
@@ -67,48 +77,89 @@ document.addEventListener("DOMContentLoaded", () => {
     },
   });
 
-  const useSharedCountdown = Boolean(projectStartAt && projectEndAt && projectId);
+  const countdownTarget = projectEducationAt || projectEndAt || null;
+  const useSharedCountdown = Boolean(countdownTarget && projectId);
   const countdownPath = useSharedCountdown ? `projects/${projectId}/countdown` : null;
-  const defaultDuration = useSharedCountdown
-    ? Math.max(60, Math.floor((projectEndAt - projectStartAt) / 1000))
+  const now = Date.now();
+  const derivedDuration = countdownTarget
+    ? Math.max(60, Math.floor((countdownTarget - now) / 1000))
     : 660;
 
   const timeOptions = {
     noteId: "timerNote",
     warningThreshold: 600,
     warningMessage: "⚠️ 10분 미만! 서두르세요.",
-    finishedMessage: "⏱️ 시간이 종료되었습니다.",
+    finishedMessage: "⏱️ 시간이 종료되었습니다. 더 이상 조작할 수 없습니다.",
     formatCurrentTime: (date) =>
       date.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false }),
   };
 
   if (useSharedCountdown) {
-    timeOptions.startTime = projectStartAt;
-    timeOptions.endTime = projectEndAt;
+    timeOptions.startTime = now;
+    timeOptions.endTime = countdownTarget;
     timeOptions.sharedCountdownPath = countdownPath;
     timeOptions.autoCreate = false;
     timeOptions.countdownSeconds = null;
   } else {
     timeOptions.startTime = null;
-    timeOptions.endTime = null;
+    timeOptions.endTime = countdownTarget;
     timeOptions.sharedCountdownPath = null;
     timeOptions.autoCreate = false;
-    timeOptions.countdownSeconds = defaultDuration;
+    timeOptions.countdownSeconds = derivedDuration;
   }
 
-  initTimeModule("currentTime", "remainTime", timeOptions);
-
-  initChatModule({
+  const chatModule = initChatModule({
     containerId: "chatModule",
     projectId,
     teamId,
     teamLabel,
   });
+
+  function lockDashboard() {
+    if (document.body.classList.contains("dashboard-locked")) return;
+    document.body.classList.add("dashboard-locked");
+    missionAreaEl?.classList.add("locked-grid");
+    chatModule?.disable?.();
+    const missionPanel = document.getElementById("mission-panel");
+    if (missionPanel) {
+      missionPanel.style.display = "none";
+    }
+    showLockBanner();
+  }
+
+  function showLockBanner() {
+    if (document.getElementById("dashboardLockBanner")) return;
+    const banner = document.createElement("div");
+    banner.id = "dashboardLockBanner";
+    banner.textContent = "⏱️ 교육 시간이 종료되었습니다. 더 이상 조작할 수 없습니다.";
+    document.body.appendChild(banner);
+  }
+
+  timeOptions.onFinished = lockDashboard;
+
+  initTimeModule("currentTime", "remainTime", timeOptions);
+
 });
 
-function buildTeamLabel(number, name) {
-  if (number) {
-    return name ? `${number}팀 ${name}` : `${number}팀`;
+function buildTeamLabel(officialName, nickname, number) {
+  const baseName = ensureTeamLabel(officialName, number);
+  if (nickname) {
+    return `${baseName} ${nickname}`.trim();
   }
-  return name || "TEAM";
+  return baseName;
+}
+
+function ensureTeamLabel(label, number) {
+  let baseName = (label || "").trim();
+  if (!baseName && Number.isFinite(number)) {
+    baseName = `${number}팀`;
+  }
+  const digitsOnly = baseName.replace(/\s+/g, "");
+  if (/^\d+$/.test(digitsOnly)) {
+    return `${digitsOnly}팀`;
+  }
+  if (/^\d+팀$/.test(digitsOnly)) {
+    return digitsOnly;
+  }
+  return baseName || (Number.isFinite(number) ? `${number}팀` : "TEAM");
 }

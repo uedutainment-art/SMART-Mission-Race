@@ -1,5 +1,5 @@
 // Firebase SDK v11.0.1 (esm)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import {
   getDatabase,
   ref,
@@ -11,7 +11,17 @@ import {
   get,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-database.js";
-import { getStorage, ref as sRef, uploadBytes, getDownloadURL, getBlob } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  getDocs,
+  deleteDoc,
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA82DnkKujrTiFSTwdAYEBJGvWM5nwqb94",
@@ -23,9 +33,10 @@ const firebaseConfig = {
   appId: "1:718673690027:web:12d78ea156465ff92666ee"
 };
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const storage = getStorage(app);
+const firestore = getFirestore(app);
 
 export {
   db,
@@ -41,5 +52,12 @@ export {
   sRef,
   uploadBytes,
   getDownloadURL,
-  getBlob,
+  firestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  getDocs,
+  deleteDoc,
 };

@@ -10,6 +10,16 @@ const DEFAULT_TEAMS = [
 
 const DEFAULT_TOTAL_MISSIONS = 9;
 
+function resolveOfficialTeamName(profile = {}, teamId = "", fallbackNumber = null) {
+  return (
+    profile.teamDisplayName ||
+    profile.officialTeamName ||
+    profile.displayName ||
+    profile.name ||
+    (Number.isFinite(fallbackNumber) && fallbackNumber > 0 ? `${fallbackNumber}팀` : teamId || "TEAM")
+  );
+}
+
 export function initRankModule({
   listId = "rankList",
   simulateButtonId = "simulateBtn",
@@ -18,6 +28,7 @@ export function initRankModule({
   projectId = null,
   missionTotal = DEFAULT_TOTAL_MISSIONS,
   onChange = null,
+  includeNickname = false,
 } = {}) {
   const listEl = document.getElementById(listId);
   if (!listEl) {
@@ -67,10 +78,13 @@ export function initRankModule({
         });
       }
 
+      const myTeamTag = team.id === highlightTeam ? '<span class="my-team-tag">내 팀</span>' : "";
+      const displayLabel = buildDisplayLabel(team, includeNickname);
+      const safeLabel = escapeHtml(displayLabel);
       row.innerHTML = `
         <div class="rank-info">
           <span class="rank-order">${index + 1}</span>
-          <span class="rank-name">${team.label}</span>
+          <span class="rank-name">${safeLabel} ${myTeamTag}</span>
         </div>
         <span class="rank-progress">${team.completed}/${team.total}</span>
       `;
@@ -117,13 +131,19 @@ export function initRankModule({
 
   return {
     update(nextList = []) {
-      const formatted = nextList.map((entry, index) => ({
-        id: entry.id || entry.name || `Team${index + 1}`,
-        label: entry.name || entry.label || `Team ${index + 1}`,
-        completed: entry.progress ?? entry.completed ?? 0,
-        total: entry.total || missionTotal,
-        order: entry.order ?? index + 1,
-      }));
+      const formatted = nextList.map((entry, index) => {
+        const order = entry.order ?? index + 1;
+        const number = entry.number ?? order;
+        return {
+          id: entry.id || entry.name || `Team${index + 1}`,
+          label: ensureTeamLabel(entry.name || entry.label || `Team ${index + 1}`, number),
+          nickname: entry.nickname || "",
+          completed: entry.progress ?? entry.completed ?? 0,
+          total: entry.total || missionTotal,
+          order,
+          number,
+        };
+      });
       setTeams(formatted);
     },
   };
@@ -142,14 +162,57 @@ function formatTeamEntry(teamId, teamData = {}, missionTotal = DEFAULT_TOTAL_MIS
     typeof profile.number === "number"
       ? profile.number
       : parseInt(String(teamId).replace(/\D+/g, ""), 10) || Number.MAX_SAFE_INTEGER;
-  const alias = (profile.name || "").trim();
-  const base = Number.isFinite(order) && order !== Number.MAX_SAFE_INTEGER ? `${order}팀` : teamId;
-  const label = alias ? `${base} ${alias}` : base;
+  const official = resolveOfficialTeamName(
+    profile,
+    teamId,
+    Number.isFinite(order) && order !== Number.MAX_SAFE_INTEGER ? order : null
+  );
+  const nickname = profile.nickname || "";
   return {
     id: teamId,
-    label,
+    label: ensureTeamLabel(official, order),
     completed,
     total: total || missionTotal,
     order,
+    profile,
+    nickname,
+    number: Number.isFinite(order) ? order : null,
+    displayLabel: buildDisplayLabel({ label: official, nickname, number: Number.isFinite(order) ? order : null }, true),
   };
+}
+
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildDisplayLabel(team = {}, includeNickname = false) {
+  const baseLabel = ensureTeamLabel(team.label, team.number || team.order);
+  const nickname = (team.nickname || "").trim();
+  if (includeNickname && nickname) {
+    return `${baseLabel} ${nickname}`.trim();
+  }
+  if (team.displayLabel && includeNickname) {
+    return team.displayLabel;
+  }
+  return baseLabel;
+}
+
+function ensureTeamLabel(label = "", fallbackNumber = null) {
+  let baseName = (label || "").trim();
+  if (!baseName && Number.isFinite(fallbackNumber)) {
+    baseName = `${fallbackNumber}팀`;
+  }
+  const compact = baseName.replace(/\s+/g, "");
+  if (/^\d+$/.test(compact)) {
+    return `${compact}팀`;
+  }
+  if (/^\d+팀$/.test(compact)) {
+    return compact;
+  }
+  return baseName || (Number.isFinite(fallbackNumber) ? `${fallbackNumber}팀` : "TEAM");
 }

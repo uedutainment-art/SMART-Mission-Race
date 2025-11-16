@@ -5,8 +5,111 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SMART Mission Race | 프로젝트 관리자</title>
     <link rel="stylesheet" href="./css/admin.css" />
+    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+    <script>
+      const firebaseConfig = {
+        apiKey: "AIzaSyA82DnkKujrTiFSTwdAYEBJGvWM5nwqb94",
+        authDomain: "smart-mission-race-57839.firebaseapp.com",
+        databaseURL: "https://smart-mission-race-57839-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "smart-mission-race-57839",
+        storageBucket: "smart-mission-race-57839.firebasestorage.app",
+        messagingSenderId: "718673690027",
+        appId: "1:718673690027:web:12d78ea156465ff92666ee",
+      };
+
+      if (!window.firebase?.apps?.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+    </script>
   </head>
   <body>
+    <script>
+      const db = firebase.firestore();
+
+      const SESSION_STORAGE_KEY = "adminAuth";
+      const LOCAL_STORAGE_KEY = "adminAuthPersist";
+      const SESSION_COOKIE_KEY = "adminSessionActive";
+
+      function getCookieValue(name) {
+        const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+        return match ? decodeURIComponent(match[1]) : null;
+      }
+
+      function setSessionCookie(name, value) {
+        document.cookie = `${name}=${encodeURIComponent(value)};path=/;SameSite=Lax`;
+      }
+
+      function clearCookie(name) {
+        document.cookie = `${name}=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      }
+
+      function clearPersistedAuth() {
+        sessionStorage.removeItem(SESSION_STORAGE_KEY);
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        clearCookie(SESSION_COOKIE_KEY);
+      }
+
+      function bootstrapSessionState() {
+        if (!getCookieValue(SESSION_COOKIE_KEY)) {
+          localStorage.removeItem(LOCAL_STORAGE_KEY);
+        }
+      }
+
+      bootstrapSessionState();
+
+      db.collection("adminSettings")
+        .doc("config")
+        .get()
+        .then((doc) => {
+          if (!doc.exists) {
+            alert("Firestore에 adminSettings/config 문서가 없습니다. 관리자 비밀번호 문서를 생성하세요.");
+            clearPersistedAuth();
+            window.location.href = "/";
+            return;
+          }
+
+          const data = doc.data() || {};
+          const adminPassword = data.adminPassword;
+
+          if (!adminPassword) {
+            alert("adminPassword 값이 설정되어 있지 않습니다. Firestore에서 비밀번호를 입력하세요.");
+            clearPersistedAuth();
+            window.location.href = "/";
+            return;
+          }
+
+          const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
+
+          // 이미 인증되어 있으면 통과
+          if (saved === adminPassword) return;
+
+          const persisted = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (persisted === adminPassword && getCookieValue(SESSION_COOKIE_KEY)) {
+            sessionStorage.setItem(SESSION_STORAGE_KEY, adminPassword);
+            setSessionCookie(SESSION_COOKIE_KEY, "true");
+            return;
+          }
+
+          const input = prompt("관리자 비밀번호를 입력하세요");
+
+          if (input !== adminPassword) {
+            alert("접근 권한이 없습니다.");
+            clearPersistedAuth();
+            window.location.href = "/";
+          } else {
+            sessionStorage.setItem(SESSION_STORAGE_KEY, adminPassword);
+            localStorage.setItem(LOCAL_STORAGE_KEY, adminPassword);
+            setSessionCookie(SESSION_COOKIE_KEY, "true");
+          }
+        })
+        .catch((error) => {
+          console.error("관리자 인증 정보를 불러오지 못했습니다.", error);
+          alert("관리자 인증 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+          clearPersistedAuth();
+          window.location.href = "/";
+        });
+    </script>
     <div class="admin-shell">
       <header>
         <h1>SMART Mission Race · 프로젝트 관리</h1>
@@ -24,84 +127,191 @@
               <thead>
                 <tr>
                   <th><input type="checkbox" id="selectAllProjects"></th>
-                  <th>프로젝트 이름</th>
-                  <th>마스터 비밀번호</th>
-                  <th>기간</th>
+                  <th>프로젝트 ID</th>
+                  <th>패스워드</th>
+                  <th>교육일</th>
                   <th>상태</th>
                 </tr>
               </thead>
               <tbody></tbody>
             </table>
+          <div class="project-pagination">
+            <button class="btn btn-secondary" id="projectPagePrev">이전</button>
+            <span id="projectPageInfo">1 / 1</span>
+            <button class="btn btn-secondary" id="projectPageNext">다음</button>
+          </div>
+            <div class="global-tools">
+              <div class="global-card">
+                <div>
+                  <h3>공용 마스터 정답</h3>
+                  <p>모든 프로젝트에서 공용으로 사용하는 마스터 키입니다.</p>
+                </div>
+                <div class="global-master-view" id="globalMasterPassView">
+                  <strong id="globalMasterPassValue">-</strong>
+                  <button type="button" class="btn btn-secondary btn-small" id="editGlobalMasterPassBtn">수정</button>
+                </div>
+                <div class="global-master-edit" id="globalMasterPassEdit" hidden>
+                  <input id="globalMasterPassInput" placeholder="예) 0313" />
+                  <button type="button" class="btn btn-primary btn-small" id="saveGlobalMasterPassBtn">저장</button>
+                  <button type="button" class="btn btn-secondary btn-small" id="cancelGlobalMasterPassBtn">취소</button>
+                </div>
+                <small class="field-hint">수정이 완료되면 모든 프로젝트에 즉시 반영됩니다.</small>
+              </div>
+            </div>
+            <div class="project-qr-panel inline-qr-panel-inline">
+              <h3>팀 로그인 QR</h3>
+              <div class="inline-qr-panel inline-qr-side" id="projectQrList">
+                <div class="qr-box" id="projectQrBox"><span class="qr-note">프로젝트를 선택하세요.</span></div>
+                <div class="inline-qr-actions side-actions">
+                  <button type="button" class="btn btn-secondary btn-small" id="qrOpenBtn" disabled>바로가기</button>
+                  <button type="button" class="btn btn-primary btn-small" id="qrDownloadBtn" disabled>다운로드</button>
+                </div>
+                <code class="qr-inline-link" id="qrInlineLink"></code>
+              </div>
+            </div>
           </div>
         </section>
         <section class="panel">
           <h2>프로젝트 정보</h2>
           <div class="editor-scroll" id="editorScroll">
             <form id="projectForm">
-              <div class="form-grid">
-                <div class="form-group">
-                  <label for="projectNameInput">프로젝트 이름</label>
-                  <input id="projectNameInput" placeholder="서울교육 런! 챌린지!" />
-                </div>
-                <div class="form-group">
-                  <label for="masterPasswordInput">마스터 패스워드</label>
-                  <input id="masterPasswordInput" placeholder="예) SEOUL1" />
-                </div>
-                <div class="form-group">
-                  <label for="startDateInput">시작일</label>
-                  <input id="startDateInput" type="date" />
-                </div>
-                <div class="form-group">
-                  <label for="endDateInput">종료일</label>
-                  <input id="endDateInput" type="date" />
-                </div>
-                <div class="form-group">
-                  <label for="organizerInput">참가 회사 / 기관</label>
-                  <input id="organizerInput" placeholder="서울특별시교육청" />
-                </div>
-                <div class="form-group">
-                  <label for="venueInput">교육 장소</label>
-                  <input id="venueInput" placeholder="서울특별시교육연수원" />
-                </div>
-                <div class="form-group">
-                  <label for="participantInput">참가 인원</label>
-                  <input id="participantInput" type="number" min="0" />
-                </div>
-                <div class="form-group">
-                  <label for="teamCountInput">참가 팀 수</label>
-                  <input id="teamCountInput" type="number" min="1" max="30" value="10" />
-                </div>
+              <div class="project-split">
+                <div class="project-box project-box-main">
+                  <div class="project-row project-row-2">
+                    <div class="form-group">
+                      <label for="projectCodeInput">프로젝트 ID</label>
+                      <input id="projectCodeInput" placeholder="예) SMR-2401" />
+                    </div>
+                    <div class="form-group">
+                      <label for="masterPasswordInput">패스워드</label>
+                      <input id="masterPasswordInput" placeholder="예) SEOUL1" />
+                    </div>
+                  </div>
+                  <div class="project-row project-row-2">
+                    <div class="form-group">
+                      <label for="projectNameInput">프로젝트 제목</label>
+                      <input id="projectNameInput" placeholder="서울교육 런! 챌린지!" />
+                    </div>
+                    <div class="form-group">
+                      <label for="projectSubtitleInput">프로젝트 부제목</label>
+                      <input id="projectSubtitleInput" placeholder="예) 슈퍼파워 미션 레이스" />
+                    </div>
+                  </div>
+                  <div class="project-row project-row-2">
+                    <div class="form-group">
+                      <label for="organizerInput">참가 회사 / 기관</label>
+                      <input id="organizerInput" placeholder="서울특별시교육청" />
+                    </div>
+                    <div class="form-group">
+                      <label for="venueInput">교육 장소</label>
+                      <input id="venueInput" placeholder="서울특별시교육연수원" />
+                    </div>
+                  </div>
+                  <div class="project-row project-row-2">
+                    <div class="form-group">
+                      <label for="participantInput">참가 인원</label>
+                      <input id="participantInput" type="number" min="0" />
+                    </div>
+                    <div></div>
+                  </div>
               </div>
-
-              <div class="section-title">로고 설정 (입장/대시보드 공용)</div>
+            </div>
+            <div class="project-box project-box-wide">
               <div class="form-group">
-                <label>로고 이미지</label>
-                <div class="logo-preview">
-                  <img id="sharedLogoPreview" alt="프로젝트 로고" />
-                  <input type="file" id="sharedLogoInput" accept="image/*" />
+                <label>교육 일정 (확장)</label>
+                <div class="education-picker compact-education wide-education">
+                  <div class="picker-field">
+                    <label for="educationDateInput" class="sr-only">교육일</label>
+                    <input id="educationDateInput" type="date" />
+                    <button type="button" class="picker-btn" id="educationDateBtn">📅</button>
+                  </div>
+                  <div class="picker-field">
+                    <label for="educationTimeInput" class="sr-only">교육 시간</label>
+                    <input id="educationTimeInput" type="time" />
+                    <button type="button" class="picker-btn" id="educationTimeBtn">⏰</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+              <div class="section-title">팀 및 미션 설정</div>
+              <div class="team-layout">
+                <div class="team-controls">
+                  <div class="form-group">
+                    <label for="teamCountInput">참가 팀 수</label>
+                    <input id="teamCountInput" type="number" min="1" max="30" value="10" />
+                  </div>
+                  <div class="form-group">
+                    <label for="missionCountInput">미션 수</label>
+                    <input id="missionCountInput" type="number" min="1" max="20" value="9" />
+                  </div>
+                  <div class="asset-column">
+                    <div class="asset-header">
+                      <div>
+                        <span>코드 이미지 라이브러리</span>
+                        <p id="codeAssetSummary" class="asset-summary">등록된 이미지가 없습니다.</p>
+                      </div>
+                      <button type="button" class="btn btn-secondary asset-manage-btn" data-asset-type="code">
+                        새창 열기
+                      </button>
+                    </div>
+                  </div>
+                  <div class="asset-column">
+                    <div class="asset-header">
+                      <div>
+                        <span>미션 이미지 라이브러리</span>
+                        <p id="missionAssetSummary" class="asset-summary">등록된 이미지가 없습니다.</p>
+                      </div>
+                      <button type="button" class="btn btn-secondary asset-manage-btn" data-asset-type="mission">
+                        새창 열기
+                      </button>
+                    </div>
+                  </div>
+                  <div class="asset-column">
+                    <div class="bulk-code-tool">
+                      <div class="asset-header">
+                        <span class="tool-title">코드 일괄 입력</span>
+                        <button type="button" class="btn btn-secondary" id="openBulkCodeModalBtn">
+                          새창 열기
+                        </button>
+                      </div>
+                    </div>
+                    <div class="logo-upload">
+                      <label>로고 이미지</label>
+                      <div class="logo-preview">
+                        <img id="sharedLogoPreview" alt="프로젝트 로고" />
+                        <input type="file" id="sharedLogoInput" accept="image/*" />
+                      </div>
+                    </div>
+                    <div class="background-upload">
+                      <label>팀 로그인 배경 이미지</label>
+                      <div class="logo-preview">
+                        <img id="backgroundImagePreview" alt="로그인 배경" />
+                        <input type="file" id="backgroundImageInput" accept="image/*" />
+                      </div>
+                      <small class="field-hint">권장 비율 16:9, 최소 1920px</small>
+                    </div>
+                  </div>
+                </div>
+                <div class="team-table-panel mission-tools">
+                  <div class="team-table-wrapper">
+                    <table class="teams-table" id="teamTable">
+                      <thead>
+                        <tr>
+                          <th>팀</th>
+                          <th>팀 이름</th>
+                          <th>비밀번호</th>
+                          <th>문제</th>
+                          <th>상태</th>
+                        </tr>
+                      </thead>
+                      <tbody></tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 
-              <div class="section-title">팀 입력</div>
-              <table class="teams-table" id="teamTable">
-                <thead>
-                  <tr>
-                    <th>팀</th>
-                    <th>팀 이름</th>
-                    <th>비밀번호</th>
-                    <th>문제</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-
-              <div class="section-title">미션 설정</div>
-              <div class="form-group">
-                <label for="missionCountInput">미션 수</label>
-                <input id="missionCountInput" type="number" min="1" max="20" value="9" />
-              </div>
-
-              <div class="editor-actions">
+            <div class="editor-actions">
                 <button type="button" class="btn btn-primary" id="saveProjectBtn">저장하기</button>
                 <button type="button" class="btn btn-secondary" id="resetResultsBtn">결과 삭제</button>
                 <button type="button" class="btn btn-secondary" id="openHQBtn">HQ 보기</button>
@@ -117,21 +327,41 @@
         <div class="modal-header">
           <div>
             <h3 id="missionModalTitle">문제 입력</h3>
-            <p>코드/미션 정답과 이미지를 설정하세요.</p>
           </div>
-          <button class="modal-close" id="missionModalClose">×</button>
+          <div class="modal-header-actions">
+            <button class="btn btn-secondary" id="photoConfigToggle" type="button">
+              사진 미션 설정
+            </button>
+            <button class="modal-close" id="missionModalClose">×</button>
+          </div>
         </div>
         <div class="modal-body">
-          <table class="mission-table">
-            <thead>
-              <tr>
-                <th>미션</th>
-                <th>코드 정답</th>
-                <th>미션 정답</th>
-                <th>코드 이미지</th>
-                <th>미션 이미지</th>
-              </tr>
-            </thead>
+          <div class="photo-config-panel" id="photoConfigPanel" hidden>
+            <div class="photo-config-panel-header">
+              <strong>사진 미션 선택</strong>
+              <button type="button" class="btn btn-secondary" id="photoConfigClose">닫기</button>
+            </div>
+            <div class="photo-config-controls">
+              <label for="photoConfigSelect" class="photo-config-label-inline">구간 선택</label>
+              <select id="photoConfigSelect"></select>
+              <div class="photo-config-actions">
+                <button type="button" class="btn btn-primary" id="photoConfigApply">선정</button>
+                <button type="button" class="btn btn-secondary" id="photoConfigClear">해제</button>
+              </div>
+              <p class="photo-config-note">M1부터 순서대로 표시되며, 모든 미션 이후 C1 코드 구간이 이어집니다.</p>
+              <p class="photo-config-current">현재 상태: <span id="photoConfigCurrent">-</span></p>
+            </div>
+          </div>
+              <table class="mission-table">
+                <thead>
+                  <tr>
+                    <th>미션</th>
+                    <th>코드 정답</th>
+                    <th>미션 정답</th>
+                    <th>코드 이미지</th>
+                    <th>미션 이미지</th>
+                  </tr>
+                </thead>
             <tbody id="missionModalBody"></tbody>
           </table>
         </div>
@@ -142,6 +372,99 @@
       </div>
     </div>
 
+    <div class="modal-overlay" id="assetModal" hidden>
+      <div class="modal-content asset-modal">
+        <div class="modal-header">
+          <div>
+            <h3 id="assetModalTitle">이미지 라이브러리 관리</h3>
+            <p>이미지 개수를 정하고, 이름과 사진을 업로드하세요.</p>
+          </div>
+          <button class="modal-close" id="assetModalClose">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="asset-modal-controls">
+            <label for="assetCountInput">이미지 수</label>
+            <input id="assetCountInput" type="number" min="1" max="50" value="1" />
+          </div>
+          <div class="asset-slot-list" id="assetSlotList"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" id="assetModalCancel">닫기</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="qrManagerModal" hidden>
+      <div class="modal-content qr-manager-modal">
+        <div class="modal-header">
+          <div>
+            <h3>미션 QR 관리</h3>
+            <p>imageId를 입력해 미션 QR을 생성하고 관리하세요.</p>
+          </div>
+          <button class="modal-close" id="qrManagerClose">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="qr-manager-top">
+            <input id="missionQrCodeInput" placeholder="imageId 입력 (예: S, A, M1)" />
+            <button class="btn btn-primary" id="missionQrGenerateBtn">QR 생성</button>
+            <div class="qr-manager-preview" id="missionQrPreview">
+              <span>미리보기 없음</span>
+            </div>
+            <div class="qr-manager-actions">
+              <button class="btn btn-secondary btn-small" id="missionQrDownloadBtn" disabled>다운로드</button>
+              <button class="btn btn-secondary btn-small" id="missionQrPrintBtn" disabled>인쇄</button>
+              <button class="btn btn-danger btn-small" id="missionQrDeleteBtn" disabled>삭제</button>
+            </div>
+          </div>
+          <div class="qr-manager-url">
+            <span>URL:</span>
+            <code id="missionQrUrlDisplay">-</code>
+          </div>
+          <div class="qr-manager-list">
+            <div class="qr-list-header">
+              <h4>등록된 미션 QR</h4>
+              <button class="btn btn-secondary btn-small" id="missionQrRefreshBtn">새로고침</button>
+            </div>
+            <div class="qr-table-scroll">
+              <table class="qr-table">
+                <thead>
+                  <tr>
+                    <th>코드</th>
+                    <th>QR</th>
+                    <th>URL</th>
+                    <th>관리</th>
+                  </tr>
+                </thead>
+                <tbody id="missionQrTableBody">
+                  <tr><td colspan="4">등록된 QR이 없습니다.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="bulkCodeModal" hidden>
+      <div class="modal-content bulk-code-modal">
+        <div class="modal-header">
+          <div>
+            <h3 id="bulkCodeModalTitle">코드 일괄 입력</h3>
+            <p id="bulkCodeModalDesc">현재 설정된 미션 수만큼 코드를 입력하세요.</p>
+          </div>
+          <button class="modal-close" id="bulkCodeModalClose">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="bulkCodeList" class="bulk-code-list"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="bulkCodeModalApply">전체 적용</button>
+          <button class="btn btn-secondary" id="bulkCodeModalCancel">닫기</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
     <script type="module" src="./js/admin.js"></script>
   </body>
 </html>

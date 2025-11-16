@@ -18,9 +18,11 @@ export function initTimeModule(currentId, remainId, options = {}) {
     autoCreate = true,
     formatCurrentTime,
     formatRemain,
+    onFinished = null,
   } = options;
 
   let intervalId = null;
+  let finishedTriggered = false;
 
   function formatDuration(seconds) {
     const hours = Math.floor(seconds / 3600);
@@ -47,6 +49,7 @@ export function initTimeModule(currentId, remainId, options = {}) {
     if (intervalId) {
       clearInterval(intervalId);
     }
+    finishedTriggered = false;
 
     function tick() {
       const now = Date.now();
@@ -71,6 +74,10 @@ export function initTimeModule(currentId, remainId, options = {}) {
         setWarning(false, true);
         clearInterval(intervalId);
         intervalId = null;
+        if (!finishedTriggered && typeof onFinished === "function") {
+          finishedTriggered = true;
+          onFinished();
+        }
         return;
       }
 
