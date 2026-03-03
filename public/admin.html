@@ -3,6 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
     <title>SMART Mission Race | 프로젝트 관리자</title>
     <link rel="stylesheet" href="./css/admin.css" />
     <script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
@@ -116,11 +118,13 @@
       </header>
       <div class="admin-layout">
         <section class="panel">
-          <div class="project-actions">
-            <button class="btn btn-primary" id="newProjectBtn">프로젝트 생성</button>
-            <button class="btn btn-danger" id="deleteProjectBtn">프로젝트 삭제</button>
-            <button class="btn btn-secondary" id="refreshProjectsBtn">새로고침</button>
-          </div>
+            <div class="project-actions">
+              <button class="btn btn-primary" id="newProjectBtn">프로젝트 생성</button>
+              <button class="btn btn-danger" id="deleteProjectBtn">프로젝트 삭제</button>
+              <button class="btn btn-secondary" id="cloneProjectBtn">프로젝트 복제</button>
+              <button class="btn btn-secondary" id="refreshProjectsBtn">새로고침</button>
+              <span class="action-note" id="refreshStatus"></span>
+            </div>
           <h2>프로젝트 목록</h2>
           <div class="editor-scroll" style="flex:1;">
             <table class="project-table" id="projectTable">
@@ -236,20 +240,20 @@
 
               <div class="section-title">팀 및 미션 설정</div>
               <div class="team-layout">
-                <div class="team-controls">
-                  <div class="form-group">
-                    <label for="teamCountInput">참가 팀 수</label>
-                    <input id="teamCountInput" type="number" min="1" max="30" value="10" />
-                  </div>
-                  <div class="form-group">
-                    <label for="missionCountInput">미션 수</label>
-                    <input id="missionCountInput" type="number" min="1" max="20" value="9" />
-                  </div>
-                  <div class="asset-column">
-                    <div class="asset-header">
-                      <div>
-                        <span>코드 이미지 라이브러리</span>
-                        <p id="codeAssetSummary" class="asset-summary">등록된 이미지가 없습니다.</p>
+              <div class="team-controls">
+                <div class="form-group">
+                  <label for="teamCountInput">참가 팀 수</label>
+                  <input id="teamCountInput" type="number" min="1" max="30" value="10" />
+                </div>
+                <div class="form-group">
+                  <label for="missionCountInput">미션 수</label>
+                  <input id="missionCountInput" type="number" min="1" max="20" value="9" />
+                </div>
+                <div class="asset-column">
+                  <div class="asset-header">
+                    <div>
+                      <span>코드 이미지 라이브러리</span>
+                      <p id="codeAssetSummary" class="asset-summary">등록된 이미지가 없습니다.</p>
                       </div>
                       <button type="button" class="btn btn-secondary asset-manage-btn" data-asset-type="code">
                         새창 열기
@@ -313,7 +317,11 @@
 
             <div class="editor-actions">
                 <button type="button" class="btn btn-primary" id="saveProjectBtn">저장하기</button>
-                <button type="button" class="btn btn-secondary" id="resetResultsBtn">결과 삭제</button>
+                <div class="btn-inline-group">
+                  <button type="button" class="btn btn-secondary" id="resetResultsBtn">결과 삭제</button>
+                  <button type="button" class="btn btn-secondary" id="deletePhotosBtn">사진 삭제</button>
+                  <span class="inline-note" id="photoCountNote">사진 0개</span>
+                </div>
                 <button type="button" class="btn btn-secondary" id="openHQBtn">HQ 보기</button>
               </div>
             </form>
@@ -344,6 +352,8 @@
             <div class="photo-config-controls">
               <label for="photoConfigSelect" class="photo-config-label-inline">구간 선택</label>
               <select id="photoConfigSelect"></select>
+              <label for="photoConfigSlotInput" class="photo-config-label-inline">사진 장수</label>
+              <input id="photoConfigSlotInput" type="number" min="1" max="10" value="1" />
               <div class="photo-config-actions">
                 <button type="button" class="btn btn-primary" id="photoConfigApply">선정</button>
                 <button type="button" class="btn btn-secondary" id="photoConfigClear">해제</button>
@@ -383,8 +393,13 @@
         </div>
         <div class="modal-body">
           <div class="asset-modal-controls">
-            <label for="assetCountInput">이미지 수</label>
-            <input id="assetCountInput" type="number" min="1" max="50" value="1" />
+            <div class="asset-count-control">
+              <label for="assetCountInput">이미지 수</label>
+              <input id="assetCountInput" type="number" min="1" max="50" value="1" />
+            </div>
+            <button type="button" class="btn btn-danger btn-small" id="assetBulkDeleteBtn" disabled>
+              선택 삭제
+            </button>
           </div>
           <div class="asset-slot-list" id="assetSlotList"></div>
         </div>

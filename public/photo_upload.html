@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
   <title>📸 미션 사진 업로드</title>
   <style>
     body {
@@ -23,9 +25,20 @@
       color: #4cc9f0;
       font-size: 28px;
     }
+    #subtitleInfo {
+      font-size: 20px;
+      color: #e2e8f0;
+      margin: 4px 0 0;
+    }
+    #pageLead {
+      font-size: 18px;
+      color: #cbd5e1;
+      margin: 6px 0 0;
+    }
     #teamInfo {
       font-size: 16px;
       color: #d1d5db;
+      margin: 6px 0 4px;
     }
     .photo-layout {
       display: flex;
@@ -193,6 +206,8 @@
 </head>
 <body>
   <h2>미션 사진 업로드</h2>
+  <p id="subtitleInfo"></p>
+  <p id="pageLead">Photo Upload</p>
   <p id="teamInfo"></p>
   <div class="upload-status" id="uploadStatus"></div>
   <div class="photo-layout">
@@ -223,12 +238,9 @@
     const missionId = params.get("mission") || "1";
 
     const infoEl = document.getElementById("teamInfo");
-    infoEl.textContent = `${projectId} · ${teamId} | Mission ${missionId}`;
+    const leadEl = document.getElementById("pageLead");
+    const subtitleEl = document.getElementById("subtitleInfo");
     const titleEl = document.querySelector("h2");
-    if (titleEl) {
-      titleEl.textContent = `${teamId} · Mission ${missionId} 사진 업로드`;
-    }
-
     const leftColumn = document.getElementById("photoColumnLeft");
     const rightColumn = document.getElementById("photoColumnRight");
     const alertArea = document.getElementById("uploadAlerts");
@@ -244,6 +256,10 @@
     init();
 
     async function init() {
+      const meta = await loadProjectMeta(projectId);
+      const teamProfile = await loadTeamProfile(projectId, teamId);
+      applyPageHeader({ meta, profile: teamProfile, missionId, projectId, teamId });
+
       slotDefinitions = await loadSlotDefinitions(projectId, teamId, missionId);
       if (!slotDefinitions.length) {
         document.querySelector(".photo-layout").innerHTML =
@@ -302,6 +318,68 @@
       updateOverallStatus({});
     }
 
+    async function loadProjectMeta(projectId) {
+      try {
+        const snapshot = await get(ref(db, `projects/${projectId}/meta`));
+        return snapshot.val() || {};
+      } catch (error) {
+        console.warn("프로젝트 정보를 불러오지 못했습니다.", error);
+        return {};
+      }
+    }
+
+    async function loadTeamProfile(projectId, teamId) {
+      try {
+        const snapshot = await get(ref(db, `projects/${projectId}/teams/${teamId}/profile`));
+        return snapshot.val() || {};
+      } catch (error) {
+        console.warn("팀 정보를 불러오지 못했습니다.", error);
+        return {};
+      }
+    }
+
+    function formatTeamLabel(profile = {}, fallbackId = "") {
+      const number = Number.isFinite(profile.number)
+        ? profile.number
+        : parseInt(String(fallbackId).replace("Team", ""), 10);
+      const name =
+        profile.teamDisplayName ||
+        profile.officialTeamName ||
+        profile.displayName ||
+        profile.name ||
+        "";
+      const normalizedName = name.replace(/\s+/g, "");
+      if (number && normalizedName === `${number}팀`) return `${number}팀`;
+      if (number && name) return `${number}팀 ${name}`;
+      if (number) return `${number}팀`;
+      return name || fallbackId || "TEAM";
+    }
+
+    function applyPageHeader({ meta = {}, profile = {}, missionId, projectId, teamId }) {
+      const title = meta.name || "미션 사진 업로드";
+      const subtitle = (meta.subtitle || "").trim();
+      const teamLabel = formatTeamLabel(profile, teamId);
+      const metaParts = [];
+      if (teamLabel) metaParts.push(teamLabel);
+      if (missionId) metaParts.push(`미션 ${missionId}`);
+
+      if (titleEl) {
+        titleEl.textContent = title;
+      }
+      if (subtitleEl) {
+        subtitleEl.textContent = subtitle;
+        subtitleEl.hidden = !subtitle;
+      }
+      if (leadEl) {
+        leadEl.hidden = false;
+        leadEl.textContent = "Photo Upload";
+      }
+      if (infoEl) {
+        infoEl.textContent = metaParts.join(" · ");
+        infoEl.hidden = metaParts.length === 0;
+      }
+    }
+
     async function loadSlotDefinitions(projectId, teamId, missionId) {
       try {
         const cfgRef = ref(db, `projects/${projectId}/teams/${teamId}/config/missions/${missionId}`);
@@ -333,6 +411,11 @@
       let file = event.target.files?.[0];
       if (!file) return;
 
+      const requiredUploads = slotDefinitions.length;
+      const preUploadCount =
+        requiredUploads > 0 ? await countMissionUploads(projectId, teamId, missionId) : 0;
+      const prevStatus = slotStateCache.get(slot.id) || "";
+
       const preview = document.getElementById(`preview-${slot.id}`);
       const statusEl = document.getElementById(`status-${slot.id}`);
       const labelEl = document.getElementById(`label-${slot.id}`);
@@ -363,19 +446,23 @@
         uploadedAt: Date.now(),
       });
 
-      await push(ref(db, `chat/${projectId}/${teamId}`), {
-        sender: teamId,
-        text: `[사진 업로드] Mission ${missionId} ${slot.label}`,
-        createdAt: serverTimestamp(),
-      });
-
         preview.innerHTML = file.type.startsWith("video")
           ? `<video src="${url}" controls playsinline></video>`
           : `<img src="${url}" alt="${slot.label}">`;
         statusEl.textContent = "대기";
         statusEl.className = "slot-status slot-status--pending";
         labelEl.textContent = "📤 업로드";
-        alert(`✅ ${slot.label} 업로드 완료`);
+        const postUploadCount =
+          requiredUploads > 0 ? await countMissionUploads(projectId, teamId, missionId) : 0;
+        const completedNow =
+          requiredUploads > 0 && preUploadCount < requiredUploads && postUploadCount >= requiredUploads;
+        const isRetryUpload = prevStatus === "retry";
+        if (completedNow || isRetryUpload) {
+          const message = isRetryUpload
+            ? `[재업로드] Mission ${missionId} ${slot.label}`
+            : `[사진 제출 완료] Mission ${missionId} (${postUploadCount}/${requiredUploads})`;
+          notifyChatAndToast(message);
+        }
       } catch (error) {
         console.error("업로드 실패:", error);
         preview.textContent = "업로드 실패";
@@ -383,6 +470,25 @@
       } finally {
         event.target.value = "";
       }
+    }
+
+    async function countMissionUploads(projectId, teamId, missionId) {
+      const snap = await get(ref(db, `uploads_meta/${projectId}/${teamId}/mission_${missionId}`));
+      const data = snap.val() || {};
+      return Object.values(data).filter((item) => item?.url).length;
+    }
+
+    async function notifyChatAndToast(message) {
+      try {
+        await push(ref(db, `chat/${projectId}/${teamId}`), {
+          sender: teamId,
+          text: message,
+          createdAt: serverTimestamp(),
+        });
+      } catch (error) {
+        console.warn("채팅 알림 전송 실패", error);
+      }
+      showToast(message, "info", 3500);
     }
 
     function normalizeUploads(raw) {

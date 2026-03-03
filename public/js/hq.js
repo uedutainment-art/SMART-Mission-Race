@@ -2,24 +2,47 @@ import { initRankModule } from "./rank_module.js";
 import { initHQBoardModule } from "./hq_board_module.js";
 import { initTimeModule } from "./time_module.js";
 import { initHQChatModule } from "./hq_chat_module.js";
-import { db, ref, onValue, set, update, push, serverTimestamp, get } from "./firebase_config.js";
+import {
+  db,
+  ref,
+  onValue,
+  set,
+  update,
+  push,
+  serverTimestamp,
+  get,
+  storage,
+  sRef,
+  listAll,
+  deleteObject,
+} from "./firebase_config.js";
 import { requireProjectContext, storeProjectContext } from "./project_context.js";
-import { downloadFile } from "./utils.js";
+import { downloadFile, resolveOfficialTeamName, createDefaultMissionState, clampMissionCount, ALLOWED_STAGES, STAGE_ALIASES } from "./utils.js";
 
 const DEFAULT_SLOT_TEMPLATE = ["Photo1", "Photo2", "S1"];
 let missionTotal = 9;
 const DEFAULT_MIME = "application/octet-stream";
 
+
 const params = new URLSearchParams(window.location.search);
 const projectIdFromQuery = params.get("project");
+const isLikelyProjectId = (value = "") => {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return false;
+  // Firebase 프로젝트 ID는 보통 영문/숫자/하이픈 조합이며 순수 숫자 패스워드는 제외
+  const pattern = /^[a-zA-Z0-9-]{6,}$/;
+  const allDigits = /^[0-9]+$/;
+  return pattern.test(trimmed) && !allDigits.test(trimmed);
+};
 
 let projectContext = null;
-if (projectIdFromQuery) {
+if (projectIdFromQuery && isLikelyProjectId(projectIdFromQuery)) {
   projectContext = { projectId: projectIdFromQuery };
   storeProjectContext(projectContext);
 } else {
   projectContext = requireProjectContext({ fallbackUrl: "/admin" });
 }
+const currentProjectId = projectContext?.projectId || null;
 
 let latestTeamData = {};
 let uploadsCache = {};
@@ -29,21 +52,17 @@ let currentPhotoContext = null;
 let projectMeta = {};
 let lastCountdownSignature = null;
 let audioCtx = null;
-let countdownFinished = false;
-const finishTimesMap = new Map();
 const pendingFinishUpdates = new Set();
-let finishListContainer = null;
-let finishListBody = null;
+let boardInstance = null;
+let chatInstance = null;
+let userGestureCaptured = false;
+const pendingTones = [];
+let rankInstance = null;
+let rankMissionTotal = missionTotal;
+const MIN_MISSIONS = 1;
+const MAX_MISSIONS = 50;
 
-function resolveOfficialTeamName(profile = {}, teamId = "", fallbackNumber = null) {
-  return (
-    profile.teamDisplayName ||
-    profile.officialTeamName ||
-    profile.displayName ||
-    profile.name ||
-    (Number.isFinite(fallbackNumber) && fallbackNumber > 0 ? `${fallbackNumber}팀` : teamId || "TEAM")
-  );
-}
+
 
 function formatTeamDisplay(team = {}) {
   if (team.label) return team.label;
@@ -56,15 +75,6 @@ function formatTeamDisplay(team = {}) {
 function escapeAttr(value = "") {
   const safe = value == null ? "" : value;
   return String(safe).replace(/"/g, "&quot;");
-}
-
-function escapeHtml(value = "") {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 function buildDownloadFileName(teamId, teamName, missionId, slotId, url = "") {
@@ -94,35 +104,24 @@ if (projectContext?.projectId) {
 }
 
 function initializeHQ(ctx) {
-  finishTimesMap.clear();
   pendingFinishUpdates.clear();
-  countdownFinished = false;
   const projectId = ctx.projectId;
   const countdownPath = projectId ? `projects/${projectId}/countdown` : null;
   const headerEl = document.getElementById("hqProjectTitle");
   const headerSubtitleEl = document.getElementById("hqProjectSubtitle");
-  finishListContainer = document.getElementById("hqFinishList");
-  finishListBody = finishListContainer?.querySelector(".finish-list__body") || null;
   document.title = "SMART Mission Race HQ";
   if (headerEl) headerEl.textContent = "SMART Mission Race HQ";
   if (headerSubtitleEl) headerSubtitleEl.textContent = "";
 
-  initRankModule({
-    listId: "hqRankList",
-    projectId,
-    missionTotal,
-  });
-
-  const board = initHQBoardModule({
+  boardInstance = initHQBoardModule({
     containerId: "hqBoard",
     teams: [],
   });
 
   const photoAlertState = new Map();
-  const chatAlertState = new Map();
 
-  const originalPhotoSetter = board.setPhotoStatus;
-  board.setPhotoStatus = (teamId, payload = { status: "default", count: 0 }) => {
+  const originalPhotoSetter = boardInstance.setPhotoStatus;
+  boardInstance.setPhotoStatus = (teamId, payload = { status: "default", count: 0 }) => {
     const normalized = payload || { status: "default", count: 0 };
     const previous = photoAlertState.get(teamId) || { status: "default", count: 0 };
     originalPhotoSetter(teamId, normalized);
@@ -130,34 +129,31 @@ function initializeHQ(ctx) {
     photoAlertState.set(teamId, normalized);
   };
 
-  const originalChatAlert = board.setChatAlert;
-  board.setChatAlert = (teamId, unreadCount = 0) => {
-    const previous = chatAlertState.get(teamId) || 0;
+  const originalChatAlert = boardInstance.setChatAlert;
+  boardInstance.setChatAlert = (teamId, unreadCount = 0) => {
     originalChatAlert(teamId, unreadCount);
-    if (unreadCount > previous) {
-      chatAlertState.set(teamId, unreadCount);
-      playNotificationTone("chat");
-    } else {
-      chatAlertState.set(teamId, unreadCount);
-    }
   };
 
   document.addEventListener(
     "click",
     () => {
+      userGestureCaptured = true;
       if (audioCtx && audioCtx.state === "suspended") {
         audioCtx.resume();
       }
+      flushPendingTones();
     },
     { once: true }
   );
-  board.setPhotoHandler((teamId) => handlePhotoClick(projectId, teamId));
+  boardInstance.setPhotoHandler((teamId) => handlePhotoClick(projectId, teamId));
 
   let timeInitialized = false;
   const metaRef = ref(db, `projects/${projectId}/meta`);
   onValue(metaRef, (snapshot) => {
     projectMeta = snapshot.val() || {};
-    missionTotal = clampMissionTotal(projectMeta.missionTotal);
+    missionTotal = resolveMissionTotal(projectMeta, missionTotal);
+    rankMissionTotal = missionTotal;
+    ensureRankModule(projectId, rankMissionTotal);
     if (headerEl) {
       headerEl.textContent = `${projectMeta.name || projectId} HQ`;
     }
@@ -172,13 +168,7 @@ function initializeHQ(ctx) {
       logoUrl: projectMeta.logoUrl || "",
       teamCount: projectMeta.teamCount || ctx.teamCount || 0,
     });
-    if (!latestTeamData || Object.keys(latestTeamData).length === 0) {
-      const count = projectMeta.teamCount || ctx.teamCount || 0;
-      if (count > 0) {
-        const placeholders = generatePlaceholderTeams(count);
-        board.update(placeholders);
-      }
-    }
+    updateBoardWithLatest(projectId);
     const countdownTarget = projectMeta.educationAt || projectMeta.endAt || null;
     const useSharedCountdown = Boolean(countdownTarget && projectId);
     if (!timeInitialized) {
@@ -205,10 +195,6 @@ function initializeHQ(ctx) {
           ? Math.max(60, Math.floor((countdownTarget - Date.now()) / 1000))
           : 660;
       }
-      timeOptions.onFinished = () => {
-        countdownFinished = true;
-        renderFinishList();
-      };
       initTimeModule("hqCurrentTime", "hqRemainTime", timeOptions);
       timeInitialized = true;
     }
@@ -219,19 +205,17 @@ function initializeHQ(ctx) {
     }
   });
 
-  let chatInstance = null;
-
   const resetBtn = document.getElementById("hqResetBtn");
   if (resetBtn) {
-    resetBtn.addEventListener("click", () => {
+    resetBtn.addEventListener("click", async () => {
       const activeTeam = chatInstance?.getActiveTeam();
       if (!activeTeam || activeTeam === "__broadcast") {
         alert("왼쪽 탭에서 팀을 선택한 뒤 리셋할 수 있습니다.");
         return;
       }
       const teamName = getTeamLabel(activeTeam);
-      if (confirm(`${teamName} 팀의 미션을 초기화할까요?`)) {
-        resetTeamMissions(projectId, activeTeam);
+      if (confirm(`${teamName} 팀의 결과를 초기화할까요? (미션·채팅·사진)`)) {
+        await resetTeamData({ projectId, teamId: activeTeam, board: boardInstance, chatInstance });
       }
     });
   }
@@ -240,39 +224,53 @@ function initializeHQ(ctx) {
   onValue(teamsRef, (snapshot) => {
     const raw = snapshot.val() || {};
     latestTeamData = raw;
-
-    const teamIds = sortTeamIds(raw);
-    let teams = teamIds.map((teamId, index) => buildTeamEntry(projectId, teamId, index, raw[teamId]));
-
-    if (teams.length === 0) {
-      const placeholderCount = projectMeta.teamCount || ctx.teamCount || 0;
-      teams = generatePlaceholderTeams(placeholderCount);
+    // 팀 데이터에 따라 전체 미션 수를 다시 산정 (메타 값이 없거나 잘못된 경우 대비)
+    const derivedTotal = deriveGlobalMissionTotal(latestTeamData, projectMeta, missionTotal);
+    if (derivedTotal !== missionTotal) {
+      missionTotal = derivedTotal;
+    }
+    if (derivedTotal !== rankMissionTotal) {
+      rankMissionTotal = derivedTotal;
+      ensureRankModule(projectId, rankMissionTotal, true);
     }
 
-    board.update(teams);
-    updateFinishTimes(teams);
-    refreshPhotoStatuses(projectId, board);
+    const teamsList = updateBoardWithLatest(projectId);
+    if (rankInstance && Array.isArray(teamsList)) {
+      const forRank = teamsList.map((team) => ({
+        id: team.id,
+        name: team.label || team.alias || team.id,
+        label: team.label || team.alias || team.id,
+        nickname: team.profile?.nickname || "",
+        completed: team.missionsCompleted || 0,
+        total: team.missionTotal || rankMissionTotal,
+        finishedAt: team.finishedAt ?? null,
+        number: team.number ?? null,
+        order: team.number ?? null,
+      }));
+      rankInstance.update(forRank);
+    }
 
     if (!chatInstance) {
       chatInstance = initHQChatModule({
         containerId: "hqChat",
         projectId,
-        teams: teams.map((team, index) => ({
+        teams: teamsList.map((team, index) => ({
           id: team.id,
           label: formatTeamDisplay(team),
         })),
         role: "HQ",
-        onTeamMessage: (teamId, _message, unreadCount) => board.setChatAlert(teamId, unreadCount),
-        onMessagesRead: (teamId) => board.setChatAlert(teamId, 0),
+        onTeamMessage: (teamId, _message, unreadCount) => boardInstance.setChatAlert(teamId, unreadCount),
+        onMessagesRead: (teamId) => boardInstance.setChatAlert(teamId, 0),
+        onMessageNotify: () => playNotificationTone("chat"),
       });
-      board.setChatHandler((teamId) => chatInstance?.setActiveTeam(teamId));
+      boardInstance.setChatHandler((teamId) => chatInstance?.setActiveTeam(teamId));
     }
   });
 
   const uploadsRef = ref(db, `uploads_meta/${projectId}`);
   onValue(uploadsRef, (snapshot) => {
     uploadsCache = snapshot.val() || {};
-    refreshPhotoStatuses(projectId, board);
+    refreshPhotoStatuses(projectId, boardInstance);
     if (photoModalEl && currentPhotoContext) {
       const key = currentPhotoContext.currentMissionKey || currentPhotoContext.missionSelect?.value;
       if (key) renderMissionGallery(key);
@@ -291,22 +289,20 @@ function sortTeamIds(raw = {}) {
 function buildTeamEntry(projectId, teamId, index, teamData = {}) {
   const profile = teamData.profile || {};
   const missionsRaw = teamData.missions || {};
-  let completed = 0;
-  const missions = {};
-
-  for (let i = 1; i <= missionTotal; i++) {
-    const entry = missionsRaw[i] || {};
-    const stage = entry.stage || (i === 1 ? "code" : "locked");
-    const panel = entry.panel || null;
-    missions[i] = { stage, panel };
-    if (stage === "done") completed += 1;
-  }
+  const teamMissionTotal = deriveTeamMissionTotal(teamData, missionTotal);
+  const { missions, completed } = normalizeTeamMissions(projectId, teamId, missionsRaw, teamMissionTotal);
 
   const number = (profile.number ?? parseInt(teamId.replace("Team", ""), 10)) || index + 1;
   const officialName = resolveOfficialTeamName(profile, teamId, number);
   const finishedAtRaw = teamData.profile?.finishedAt;
-  const finishedAt = typeof finishedAtRaw === "number" ? finishedAtRaw : null;
-  if (completed >= missionTotal && !finishedAt) {
+  let finishedAt = null;
+  if (typeof finishedAtRaw === "number" && Number.isFinite(finishedAtRaw)) {
+    finishedAt = finishedAtRaw;
+  } else if (typeof finishedAtRaw === "string") {
+    const parsed = Number(finishedAtRaw);
+    finishedAt = Number.isFinite(parsed) ? parsed : null;
+  }
+  if (completed >= teamMissionTotal && !finishedAt) {
     markTeamFinished(projectId, teamId);
   }
 
@@ -317,11 +313,102 @@ function buildTeamEntry(projectId, teamId, index, teamData = {}) {
     label: officialName,
     profile,
     missionsCompleted: completed,
-    missionTotal,
+    missionTotal: teamMissionTotal,
     photoStatus: teamData.photoStatus || "default",
     missions,
     finishedAt,
   };
+}
+
+function normalizeMissionState(raw = {}, missionIndex = 1, previousDone = true) {
+  const current = raw || {};
+  const stageRaw = typeof current.stage === "string" ? current.stage.trim() : current.stage;
+  const aliasKey = typeof stageRaw === "string" ? stageRaw.toLowerCase() : stageRaw;
+  let stage = aliasKey;
+  if (typeof aliasKey === "string" && STAGE_ALIASES[aliasKey]) {
+    stage = STAGE_ALIASES[aliasKey];
+  }
+  if (!ALLOWED_STAGES.has(stage)) {
+    stage = missionIndex === 1 ? "code" : "locked";
+  }
+
+  // 이전 미션이 완료되지 않았으면 잠금 유지
+  if (!previousDone && missionIndex !== 1) {
+    stage = "locked";
+  }
+
+  // 첫 미션은 done이 아니면 항상 code
+  if (missionIndex === 1 && stage !== "done") {
+    stage = "code";
+  }
+
+
+  let panel = current.panel ?? null;
+  if (stage === "done" || stage === "locked") {
+    panel = null;
+  } else {
+    // stage가 code/mission인 경우, 기존 panel이 유효하면 유지하고 아니면 stage와 맞춤
+    if (panel !== "code" && panel !== "mission") {
+      panel = stage;
+    }
+  }
+
+  return { stage, panel };
+}
+
+function normalizeTeamMissions(projectId, teamId, missionsRaw = {}, total = missionTotal) {
+  const missions = {};
+  let completed = 0;
+  let previousDone = true;
+  const updates = {};
+
+  for (let i = 1; i <= total; i++) {
+    const normalized = normalizeMissionState(missionsRaw[i], i, previousDone);
+    missions[i] = normalized;
+    if (normalized.stage === "done") completed += 1;
+    previousDone = normalized.stage === "done";
+
+    const raw = missionsRaw[i] || {};
+    const rawStage = typeof raw.stage === "string" ? raw.stage.trim() : raw.stage;
+    const rawPanel = raw.panel ?? null;
+    if (rawStage !== normalized.stage) {
+      updates[`projects/${projectId}/teams/${teamId}/missions/${i}/stage`] = normalized.stage;
+    }
+    if ((rawPanel || null) !== normalized.panel) {
+      updates[`projects/${projectId}/teams/${teamId}/missions/${i}/panel`] = normalized.panel;
+    }
+  }
+
+  if (projectId && teamId && Object.keys(updates).length > 0) {
+    update(ref(db), updates).catch((error) => console.warn("Mission normalization failed", teamId, error));
+  }
+
+  return { missions, completed };
+}
+
+function deriveTeamMissionTotal(teamData = {}, fallback = missionTotal) {
+  const metaTotal = Number(projectMeta?.missionTotal);
+  const configMissions = teamData.config?.missions || {};
+  let configMax = 0;
+  Object.keys(configMissions).forEach((key) => {
+    const n = Number(key);
+    if (Number.isFinite(n)) {
+      configMax = Math.max(configMax, n);
+    }
+  });
+  const missionsRaw = teamData.missions || {};
+  let missionMax = 0;
+  Object.keys(missionsRaw).forEach((key) => {
+    const n = Number(key);
+    if (Number.isFinite(n)) {
+      missionMax = Math.max(missionMax, n);
+    }
+  });
+
+  // 설정값(metaTotal), 팀별 설정(configMax), 실제 진행 데이터(missionMax), 전역 최댓값(fallback) 중 가장 큰 값을 선택
+  const candidates = [metaTotal, configMax, missionMax, fallback, 9].filter((v) => Number.isFinite(v) && v > 0);
+  const chosen = candidates.length > 0 ? Math.max(...candidates) : 9;
+  return clampMissionCount(chosen);
 }
 
 function getTeamLabel(teamId) {
@@ -331,11 +418,60 @@ function getTeamLabel(teamId) {
   return resolveOfficialTeamName(profile, teamId, numeric);
 }
 
+function getDefaultTeamName(teamId) {
+  const profile = latestTeamData[teamId]?.profile || {};
+  const fallback = parseInt(teamId.replace("Team", ""), 10);
+  const numeric = Number.isFinite(profile.number) ? profile.number : fallback;
+  if (Number.isFinite(numeric) && numeric > 0) return `${numeric}팀`;
+  return teamId || "TEAM";
+}
+
 function refreshPhotoStatuses(projectId, board) {
   const teamIds = Object.keys(latestTeamData || {});
   teamIds.forEach((teamId) => {
     board.setPhotoStatus(teamId, computePhotoStatus(projectId, teamId));
   });
+}
+
+function updateBoardWithLatest(projectIdOverride = null) {
+  if (!boardInstance) return;
+  const activeProjectId = projectIdOverride || currentProjectId || projectContext?.projectId || null;
+  const teamIds = sortTeamIds(latestTeamData);
+  let teams = teamIds.map((teamId, index) => buildTeamEntry(activeProjectId, teamId, index, latestTeamData[teamId]));
+
+  if (teams.length === 0) {
+    const placeholderCount = projectMeta.teamCount || 0;
+    teams = generatePlaceholderTeams(placeholderCount || 0);
+  }
+
+  boardInstance.update(teams);
+  refreshPhotoStatuses(activeProjectId, boardInstance);
+  return teams;
+}
+
+function resolveMissionTotal(meta = {}, fallback = 9) {
+  const fromMeta = Number(meta.missionTotal);
+  if (Number.isFinite(fromMeta) && fromMeta > 0) return clampMissionCount(fromMeta);
+  return clampMissionCount(fallback);
+}
+
+function deriveGlobalMissionTotal(teams = {}, meta = {}, fallback = 9) {
+  const metaTotal = Number(meta.missionTotal);
+  let maxMission = Number.isFinite(metaTotal) && metaTotal > 0 ? metaTotal : 0;
+  Object.values(teams || {}).forEach((team) => {
+    const configMissions = team?.config?.missions || {};
+    Object.keys(configMissions).forEach((key) => {
+      const n = Number(key);
+      if (Number.isFinite(n)) maxMission = Math.max(maxMission, n);
+    });
+    const missionsRaw = team?.missions || {};
+    Object.keys(missionsRaw).forEach((key) => {
+      const n = Number(key);
+      if (Number.isFinite(n)) maxMission = Math.max(maxMission, n);
+    });
+  });
+  if (maxMission > 0) return clampMissionCount(maxMission);
+  return clampMissionCount(fallback);
 }
 
 function handlePhotoAlert(previousState = { status: "default", count: 0 }, nextState = { status: "default", count: 0 }) {
@@ -351,6 +487,7 @@ function handlePhotoAlert(previousState = { status: "default", count: 0 }, nextS
 }
 
 function getAudioContext() {
+  if (!userGestureCaptured) return null;
   if (audioCtx) return audioCtx;
   const AudioCtor = window.AudioContext || window.webkitAudioContext;
   if (!AudioCtor) return null;
@@ -360,19 +497,23 @@ function getAudioContext() {
 
 function playNotificationTone(kind = "chat") {
   const ctx = getAudioContext();
-  if (!ctx) return;
+  if (!ctx) {
+    // 사용자 제스처 이후 재생하도록 큐에 저장
+    pendingTones.push(kind);
+    return;
+  }
   const baseTime = ctx.currentTime;
   const sequences =
     kind === "photo"
       ? [
-          { offset: 0, freq: 1100, duration: 0.08, volume: 0.28 },
-          { offset: 0.09, freq: 900, duration: 0.1, volume: 0.22 },
-          { offset: 0.2, freq: 700, duration: 0.12, volume: 0.18 },
-        ]
+        { offset: 0, freq: 1100, duration: 0.08, volume: 0.28 },
+        { offset: 0.09, freq: 900, duration: 0.1, volume: 0.22 },
+        { offset: 0.2, freq: 700, duration: 0.12, volume: 0.18 },
+      ]
       : [
-          { offset: 0, freq: 820, duration: 0.1, volume: 0.25 },
-          { offset: 0.12, freq: 960, duration: 0.12, volume: 0.23 },
-        ];
+        { offset: 0, freq: 820, duration: 0.1, volume: 0.25 },
+        { offset: 0.12, freq: 960, duration: 0.12, volume: 0.23 },
+      ];
 
   sequences.forEach(({ offset, freq, duration, volume }) => {
     const oscillator = ctx.createOscillator();
@@ -385,6 +526,28 @@ function playNotificationTone(kind = "chat") {
     oscillator.start(startTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
     oscillator.stop(startTime + duration + 0.02);
+  });
+}
+
+function flushPendingTones() {
+  if (!pendingTones.length) return;
+  if (!getAudioContext()) return;
+  const jobs = pendingTones.splice(0, pendingTones.length);
+  jobs.forEach((kind) => playNotificationTone(kind));
+}
+
+function ensureRankModule(projectId, missionTotalValue, force = false) {
+  const listEl = document.getElementById("hqRankList");
+  if (!listEl || !projectId) return;
+  if (!force && rankInstance && rankMissionTotal === missionTotalValue) return;
+  // 재초기화: 기존 목록을 지워 플리커를 줄임
+  listEl.innerHTML = "";
+  rankInstance = initRankModule({
+    listId: "hqRankList",
+    projectId,
+    missionTotal: missionTotalValue,
+    showFinishTime: true,
+    includeNickname: true,
   });
 }
 
@@ -505,66 +668,6 @@ function normalizeLegacyUploads(raw = {}) {
   return missions;
 }
 
-function updateFinishTimes(teams = []) {
-  const currentIds = new Set();
-  teams.forEach((team) => {
-    currentIds.add(team.id);
-    if (team.finishedAt) {
-      finishTimesMap.set(team.id, team.finishedAt);
-    } else {
-      finishTimesMap.delete(team.id);
-    }
-  });
-  Array.from(finishTimesMap.keys()).forEach((teamId) => {
-    if (!currentIds.has(teamId)) {
-      finishTimesMap.delete(teamId);
-    }
-  });
-  renderFinishList();
-}
-
-function renderFinishList() {
-  if (!finishListContainer || !finishListBody) return;
-  if (!countdownFinished) {
-    finishListContainer.classList.remove("finish-list--visible");
-    finishListBody.innerHTML = "";
-    return;
-  }
-  const entries = Array.from(finishTimesMap.entries())
-    .map(([teamId, timestamp]) => ({
-      teamId,
-      timestamp: Number(timestamp) || null,
-      label: getTeamLabel(teamId),
-    }))
-    .filter((entry) => Number.isFinite(entry.timestamp))
-    .sort((a, b) => a.timestamp - b.timestamp);
-  if (!entries.length) {
-    finishListBody.innerHTML = `<p class="finish-empty">완료 팀이 없습니다.</p>`;
-  } else {
-    finishListBody.innerHTML = entries
-      .map(
-        (entry) => `
-        <div class="finish-team">
-          <span class="finish-team__name">${escapeHtml(entry.label)}</span>
-          <span class="finish-team__time">${formatFinishTime(entry.timestamp)}</span>
-        </div>
-      `
-      )
-      .join("");
-  }
-  finishListContainer.classList.add("finish-list--visible");
-}
-
-function formatFinishTime(timestamp) {
-  if (!Number.isFinite(timestamp)) return "--:--:--";
-  return new Date(timestamp).toLocaleTimeString("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-}
-
 function markTeamFinished(projectId, teamId) {
   if (!projectId || !teamId || pendingFinishUpdates.has(teamId)) return;
   pendingFinishUpdates.add(teamId);
@@ -586,9 +689,69 @@ async function fetchCurrentUploads(projectId, teamId) {
   }
 }
 
-function resetTeamMissions(projectId, teamId) {
-  const missionRef = ref(db, `projects/${projectId}/teams/${teamId}/missions`);
-  return set(missionRef, createDefaultMissionState(missionTotal));
+async function resetTeamData({ projectId, teamId, board, chatInstance }) {
+  if (!projectId || !teamId) return;
+  const defaultName = getDefaultTeamName(teamId);
+  const profile = latestTeamData[teamId]?.profile || {};
+  const number = Number.isFinite(profile.number) ? profile.number : parseInt(teamId.replace("Team", ""), 10) || null;
+  const password = profile.password || "";
+  const nextProfile = {
+    ...profile,
+    number,
+    password,
+    finishedAt: null,
+    teamDisplayName: defaultName,
+    displayName: defaultName,
+    officialTeamName: defaultName,
+    name: defaultName,
+  };
+  const updates = {
+    [`projects/${projectId}/teams/${teamId}/missions`]: createDefaultMissionState(missionTotal),
+    [`projects/${projectId}/teams/${teamId}/profile`]: nextProfile,
+    [`chat/${projectId}/${teamId}`]: null,
+    [`uploads_meta/${projectId}/${teamId}`]: null,
+  };
+  try {
+    await update(ref(db), updates);
+    await deleteTeamUploadsFromStorage(projectId, teamId);
+    uploadsCache[teamId] = {};
+    if (typeof board?.setPhotoStatus === "function") {
+      board.setPhotoStatus(teamId, { status: "default", count: 0 });
+    }
+    if (chatInstance?.clearTeamHistory) {
+      chatInstance.clearTeamHistory(teamId);
+    }
+    alert(`${getTeamLabel(teamId)} 팀의 미션/채팅/사진을 초기화했습니다.`);
+  } catch (error) {
+    console.error("팀 데이터 초기화 실패", error);
+    alert("팀 데이터 초기화 중 오류가 발생했습니다.");
+  }
+}
+
+async function deleteTeamUploadsFromStorage(projectId, teamId) {
+  if (!projectId || !teamId) return;
+  const baseRef = sRef(storage, `uploads/${projectId}/${teamId}`);
+  try {
+    await deleteFolderRecursively(baseRef);
+  } catch (error) {
+    console.warn("스토리지 사진 삭제 실패", error);
+  }
+}
+
+async function deleteFolderRecursively(folderRef) {
+  const list = await listAll(folderRef);
+  const deletions = [];
+  list.items.forEach((item) => {
+    deletions.push(
+      deleteObject(item).catch((error) => {
+        console.warn("파일 삭제 실패", item.fullPath, error);
+      })
+    );
+  });
+  for (const prefix of list.prefixes) {
+    deletions.push(deleteFolderRecursively(prefix));
+  }
+  await Promise.all(deletions);
 }
 
 function generatePlaceholderTeams(count = 0) {
@@ -610,16 +773,7 @@ function generatePlaceholderTeams(count = 0) {
   return teams;
 }
 
-function createDefaultMissionState(total = missionTotal) {
-  const missions = {};
-  for (let i = 1; i <= total; i++) {
-    missions[i] = {
-      stage: i === 1 ? "code" : "locked",
-      panel: null,
-    };
-  }
-  return missions;
-}
+
 
 function openPhotoModal(projectId, teamId, missions) {
   closePhotoModal();
@@ -645,11 +799,11 @@ function openPhotoModal(projectId, teamId, missions) {
         </div>
         <select id="photoMissionSelect">
           ${missionKeys
-            .map((key) => {
-              const missionId = key.split("_")[1];
-              return `<option value="${key}">Mission ${missionId}</option>`;
-            })
-            .join("")}
+      .map((key) => {
+        const missionId = key.split("_")[1];
+        return `<option value="${key}">Mission ${missionId}</option>`;
+      })
+      .join("")}
         </select>
       </div>
       <div class="photo-modal__body">
@@ -826,7 +980,7 @@ function renderMissionGallery(missionKey) {
     if (item) {
       hasFiles = true;
       const fileName = buildDownloadFileName(teamId, teamName, missionId, slotId, item.url);
-  enableDragDownload(media, {
+      enableDragDownload(media, {
         url: item.url,
         mime: item.type || DEFAULT_MIME,
         fileName,
@@ -1052,10 +1206,7 @@ function triggerBlobDownload(blob, fileName) {
   }, 0);
 }
 
-function clampMissionTotal(value) {
-  const num = Number.isFinite(value) ? value : 9;
-  return Math.max(1, Math.min(20, num));
-}
+
 
 function syncProjectCountdown(projectId, meta = {}) {
   if (!projectId) return;

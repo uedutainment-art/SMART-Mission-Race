@@ -1,30 +1,11 @@
 import { db, ref, set, update, onValue, get, firestore, doc, getDoc } from "./firebase_config.js";
+import { createDefaultMissionState, sanitizeMasterPass, ALLOWED_STAGES, STAGE_ALIASES } from "./utils.js";
 
 const PANEL_ID = "mission-panel";
-const ALLOWED_STAGES = new Set(["locked", "code", "mission", "done"]);
-const DEFAULT_MASTER_PASS = "0313";
+
+
 const adminSettingsConfigRef = doc(firestore, "adminSettings", "config");
 const realtimeMasterPassRef = ref(db, "adminSettings/config/missionMasterPass");
-const STAGE_ALIASES = {
-  finish: "done",
-  finished: "done",
-  complete: "done",
-  completed: "done",
-  challenge: "code",
-  start: "code",
-  active: "mission",
-};
-
-function createDefaultMissionState(totalMissions) {
-  const initial = {};
-  for (let i = 1; i <= totalMissions; i++) {
-    initial[i] = {
-      stage: i === 1 ? "code" : "locked",
-      panel: null,
-    };
-  }
-  return initial;
-}
 
 
 function buildUploadLink(projectId, teamId, missionNumber) {
@@ -52,10 +33,10 @@ export function initMissionModule({
 
   let missionAnswers = {};
   let photoSettings = {};
-const missionBoxes = new Map();
-const missionState = {};
-const missionsRootRef = ref(db, `projects/${projectId}/teams/${teamId}/missions`);
-const teamAnswersRef = ref(db, `projects/${projectId}/teams/${teamId}/config/missions`);
+  const missionBoxes = new Map();
+  const missionState = {};
+  const missionsRootRef = ref(db, `projects/${projectId}/teams/${teamId}/missions`);
+  const teamAnswersRef = ref(db, `projects/${projectId}/teams/${teamId}/config/missions`);
   let completionModalEl = null;
   let completionShown = false;
   const searchParams = new URLSearchParams(window.location.search);
@@ -64,13 +45,10 @@ const teamAnswersRef = ref(db, `projects/${projectId}/teams/${teamId}/config/mis
     return value === "1" || value === "true" || value === "yes" || value === "reset";
   })();
 
-let currentMission = null;
-let photoOverlayEl = null;
+  let currentMission = null;
+  let photoOverlayEl = null;
 
-  function sanitizeMasterPass(value = "") {
-    const trimmed = (value || "").trim();
-    return trimmed || DEFAULT_MASTER_PASS;
-  }
+
 
   async function loadGlobalMasterPass() {
     try {
@@ -112,6 +90,16 @@ let photoOverlayEl = null;
     return (answer.answerCode || answer.codeAnswer || answer.missionAnswer || "").trim();
   }
 
+  function getCodeExpectedValue(missionNumber) {
+    const answer = resolveMissionAnswer(missionNumber);
+    return (answer.codeAnswer || "").trim();
+  }
+
+  function getMissionExpectedValue(missionNumber) {
+    const answer = resolveMissionAnswer(missionNumber);
+    return (answer.missionAnswer || "").trim();
+  }
+
   function defaultAnswer() {
     return {
       answerAssetId: "",
@@ -129,25 +117,25 @@ let photoOverlayEl = null;
     return missionAnswers[missionNumber] || defaultAnswer();
   }
 
-function getPhotoConfig(missionNumber) {
-  const config = photoSettings[missionNumber];
-  if (config) return config;
-  const answers = missionAnswers[missionNumber] || {};
-  return {
-    photoSlots: Number(answers.photoSlots) || 0,
-    specialSlots: Number(answers.specialSlots) || 0,
-    photoTarget: answers.photoTarget || "",
-  };
-}
+  function getPhotoConfig(missionNumber) {
+    const config = photoSettings[missionNumber];
+    if (config) return config;
+    const answers = missionAnswers[missionNumber] || {};
+    return {
+      photoSlots: Number(answers.photoSlots) || 0,
+      specialSlots: Number(answers.specialSlots) || 0,
+      photoTarget: answers.photoTarget || "",
+    };
+  }
 
-function resolvePhotoTarget(missionNumber) {
-  const config = getPhotoConfig(missionNumber);
-  return config.photoTarget || "";
-}
+  function resolvePhotoTarget(missionNumber) {
+    const config = getPhotoConfig(missionNumber);
+    return config.photoTarget || "";
+  }
 
-function isPhotoMission(missionNumber) {
-  return Boolean(resolvePhotoTarget(missionNumber));
-}
+  function isPhotoMission(missionNumber) {
+    return Boolean(resolvePhotoTarget(missionNumber));
+  }
 
   for (let i = 1; i <= totalMissions; i++) {
     const box = document.createElement("div");
@@ -313,7 +301,7 @@ function isPhotoMission(missionNumber) {
     const answer = resolveMissionAnswer(missionNumber);
     const photoTarget = resolvePhotoTarget(missionNumber);
     const showCodePhotoButton = photoTarget === "code";
-    const answerCodeValue = getAnswerCodeValue(answer);
+    const answerCodeValue = getCodeExpectedValue(missionNumber);
     const codeImageUrl = answer.codeImageUrl || answer.missionImageUrl || answer.answerImageUrl || "";
     title.textContent = `MISSION ${missionNumber} - CODE`;
     const imageTemplate = codeImageUrl
@@ -354,7 +342,7 @@ function isPhotoMission(missionNumber) {
     const answer = resolveMissionAnswer(missionNumber);
     const photoTarget = resolvePhotoTarget(missionNumber);
     const showMissionPhotoButton = photoTarget === "mission";
-    const answerCodeValue = getAnswerCodeValue(answer);
+    const answerCodeValue = getMissionExpectedValue(missionNumber);
     const missionImageUrl = answer.missionImageUrl || answer.codeImageUrl || answer.answerImageUrl || "";
     title.textContent = `MISSION ${missionNumber} - 미션`;
     const imageTemplate = missionImageUrl

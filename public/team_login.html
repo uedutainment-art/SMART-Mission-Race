@@ -3,10 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
     <title>SMART Mission Race | 팀 로그인</title>
     <link rel="stylesheet" href="./css/login.css" />
   </head>
-  <body>
+  <body class="login-page">
     <div class="login-scene">
       <div class="login-status" id="loginStatus"></div>
 
@@ -21,11 +23,29 @@
       <section class="login-step" id="teamStep">
         <div class="input-field">
           <label for="teamNameInput">TEAM NAME</label>
-          <input id="teamNameInput" type="text" placeholder="예) 잘나가는 조" maxlength="24" />
+          <input
+            id="teamNameInput"
+            type="text"
+            placeholder="예) 잘나가는 조"
+            maxlength="24"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+            inputmode="text"
+          />
         </div>
         <div class="input-field">
           <label for="teamPasswordInput">TEAM PASSWORD</label>
-          <input id="teamPasswordInput" type="password" placeholder="팀 비밀번호" autocomplete="off" />
+          <input
+            id="teamPasswordInput"
+            type="password"
+            placeholder="팀 비밀번호"
+            autocomplete="off"
+            autocapitalize="off"
+            autocorrect="off"
+            spellcheck="false"
+          />
         </div>
         <button class="login-button" id="teamButton">TEAM LOGIN</button>
       </section>

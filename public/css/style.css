@@ -202,6 +202,14 @@ body {
   gap: 6px;
 }
 
+.rank-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+}
+
 .rank-order {
   width: 28px;
   height: 28px;
@@ -236,6 +244,15 @@ body {
   font-weight: 700;
   color: #4cc9f0;
   font-size: 16px;
+}
+
+.rank-finish-time {
+  font-size: 12px;
+  color: #cbd5f5;
+  font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 2px 8px;
 }
 
 .rank-info .my-team-tag {

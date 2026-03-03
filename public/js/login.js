@@ -1,5 +1,6 @@
-import { db, ref, get, update } from "./firebase_config.js";
+import { db, ref, get, update, onValue } from "./firebase_config.js";
 import { storeTeamSession, clearTeamSession } from "./session_module.js";
+import { resolveOfficialTeamName, normalizePasswordValue } from "./utils.js";
 
 const masterStep = document.getElementById("masterStep");
 const teamStep = document.getElementById("teamStep");
@@ -23,18 +24,13 @@ let projectsCache = null;
 let activeProjectId = null;
 let activeProject = null;
 let teamNameTouched = false;
+let projectsWatcherCleanup = null;
+let reloadScheduled = false;
 
-function resolveOfficialTeamName(profile = {}, teamId = "Team1", teamNumber = 1) {
-  return (
-    profile.teamDisplayName ||
-    profile.officialTeamName ||
-    profile.displayName ||
-    profile.name ||
-    (Number.isFinite(teamNumber) && teamNumber > 0 ? `${teamNumber}팀` : teamId)
-  );
-}
+
 
 clearTeamSession();
+initializeProjectWatcher();
 showMasterStep();
 loadProjects().then(() => {
   if (presetProjectId && !presetHandled) {
@@ -74,6 +70,7 @@ teamNameInput.addEventListener("input", () => {
 teamPasswordInput.addEventListener("input", handleTeamPasswordPreview);
 
 async function loadProjects() {
+  initializeProjectWatcher();
   if (projectsCache) return projectsCache;
   const snapshot = await get(ref(db, PROJECTS_PATH));
   projectsCache = snapshot.val() || {};
@@ -91,10 +88,10 @@ function showMasterStep() {
 function showTeamStep() {
   masterStep.classList.remove("active");
   teamStep.classList.add("active");
-  teamPasswordInput.value = "";
   teamNameInput.value = "";
+  teamPasswordInput.value = "";
   teamNameTouched = false;
-  teamPasswordInput.focus();
+  teamNameInput.focus();
 }
 
 async function handleMasterUnlock() {
@@ -210,13 +207,46 @@ function updateProjectDisplay(project) {
   setBodyBackground(meta.backgroundUrl || "");
 }
 
+function initializeProjectWatcher() {
+  if (projectsWatcherCleanup) return;
+  const projectsRef = ref(db, PROJECTS_PATH);
+  projectsWatcherCleanup = onValue(projectsRef, (snapshot) => {
+    const data = snapshot.val();
+    if (!data) {
+      scheduleTeamLoginReload();
+      return;
+    }
+    projectsCache = data;
+    if (!activeProjectId) return;
+    if (data[activeProjectId]) {
+      activeProject = data[activeProjectId];
+    } else {
+      scheduleTeamLoginReload();
+    }
+  });
+}
+
+function scheduleTeamLoginReload() {
+  if (reloadScheduled) return;
+  reloadScheduled = true;
+  setTimeout(() => {
+    if (typeof location?.reload === "function") {
+      location.reload();
+    } else {
+      window.location.href = window.location.href;
+    }
+  }, 150);
+}
+
 
 function findActiveTeamByPassword(password = "") {
   if (!activeProject) return null;
+  const normalizedInput = normalizePasswordValue(password);
+  if (!normalizedInput) return null;
   const teams = activeProject.teams || {};
   for (const [teamId, team] of Object.entries(teams)) {
     const profile = team.profile || {};
-    if ((profile.password || "1") === password) {
+    if (normalizePasswordValue(profile.password) === normalizedInput) {
       return {
         teamId,
         teamProfile: {
@@ -234,28 +264,22 @@ function handleTeamPasswordPreview() {
     setStatus("먼저 마스터 패스워드를 입력하세요.");
     return;
   }
-  const password = teamPasswordInput.value.trim();
-  if (!password) {
+  const password = teamPasswordInput.value;
+  const normalizedInput = normalizePasswordValue(password);
+  if (!normalizedInput) {
     setStatus("");
-    teamNameTouched = false;
-    teamNameInput.value = "";
     return;
   }
   const match = findActiveTeamByPassword(password);
   if (match) {
     updateProjectDisplay(activeProject);
-    if (!teamNameTouched || !teamNameInput.value.trim()) {
-      teamNameInput.value = match.teamProfile.nickname || "";
-      teamNameTouched = false;
-    }
     setStatus("");
   } else {
     setStatus("일치하는 팀 정보가 없습니다.");
-    if (!teamNameTouched) {
-      teamNameInput.value = "";
-    }
   }
 }
+
+
 
 async function autoSelectProjectById(projectId = "") {
   const projects = await loadProjects();

@@ -422,6 +422,10 @@ header h1 {
   gap: 8px;
   margin-bottom: 12px;
 }
+.project-actions .btn {
+  font-size: 12px;
+  padding: 8px 12px;
+}
 
 .btn {
   border: none;
@@ -857,6 +861,43 @@ header h1 {
   display: flex;
   gap: 12px;
 }
+.btn-loading {
+  position: relative;
+}
+.btn-loading::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.action-note {
+  font-size: 12px;
+  color: #9ca3af;
+}
+.btn-inline-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.inline-note {
+  font-size: 12px;
+  color: #6b7280;
+}
 
 .status-tag {
   padding: 2px 8px;
@@ -1143,10 +1184,18 @@ header h1 {
 .asset-modal-controls {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 14px;
   font-size: 13px;
   color: #cbd5f5;
+}
+
+.asset-count-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .asset-modal-controls input {
@@ -1179,6 +1228,31 @@ header h1 {
   font-weight: 600;
   color: #94a3b8;
   align-self: flex-start;
+}
+
+.asset-slot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.asset-slot-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #cbd5f5;
+}
+
+.asset-slot-select input {
+  width: 16px;
+  height: 16px;
+}
+
+.asset-slot-select input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .asset-slot-body {

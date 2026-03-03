@@ -11,6 +11,7 @@ export function initHQChatModule({
   welcomeMessage = "[HQ 시스템] 채팅 연결 대기 중...",
   onTeamMessage,
   onMessagesRead,
+  onMessageNotify,
 } = {}) {
   const container = document.getElementById(containerId);
   if (!container) return { send: () => {} };
@@ -36,7 +37,7 @@ export function initHQChatModule({
     <div class="messages" id="${messagesId}"></div>
     <div class="input-area">
       <input id="${inputId}" placeholder="${placeholder}" />
-      <button id="${buttonId}">전송</button>
+      <button id="${buttonId}" type="button">전송</button>
     </div>
   `;
 
@@ -50,6 +51,7 @@ export function initHQChatModule({
     messages: {},
     unread: {},
   };
+  let lastSendAt = 0;
 
   if (welcomeMessage) {
     ensureTeamState(state.activeTeam);
@@ -151,6 +153,10 @@ export function initHQChatModule({
         teamId,
       };
 
+      if (message.sender !== role && typeof onMessageNotify === "function") {
+        onMessageNotify(teamId, message);
+      }
+
       const list = state.messages[teamId];
       if (!list.find((item) => item.id === message.id)) {
         list.push(message);
@@ -209,6 +215,9 @@ export function initHQChatModule({
   function sendMessage() {
     const value = inputEl.value.trim();
     if (!value) return;
+    const now = Date.now();
+    if (now - lastSendAt < 200) return; // 막 연속 입력 방지
+    lastSendAt = now;
     const refToUse = activeChatRef();
     push(refToUse, {
       sender: role,
@@ -218,9 +227,26 @@ export function initHQChatModule({
     inputEl.value = "";
   }
 
+  function clearTeamHistory(teamId) {
+    if (!teamId) return;
+    ensureTeamState(teamId);
+    state.messages[teamId] = [];
+    state.unread[teamId] = 0;
+    if (state.activeTeam === teamId) {
+      state.activeTeam = BROADCAST_ROOM_ID;
+      ensureTeamState(state.activeTeam);
+      updateTabs();
+      renderMessages(state.activeTeam);
+      updatePlaceholder();
+    } else {
+      updateTabs();
+    }
+  }
+
   buttonEl.addEventListener("click", sendMessage);
   inputEl.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
+      if (event.isComposing) return; // 한글 등 IME 입력 중 엔터는 무시하여 중복 전송 방지
       event.preventDefault();
       sendMessage();
     }
@@ -254,5 +280,6 @@ export function initHQChatModule({
     getActiveTeam() {
       return state.activeTeam;
     },
+    clearTeamHistory,
   };
 }

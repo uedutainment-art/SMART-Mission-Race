@@ -15,12 +15,13 @@ import {
   collection,
   getDocs,
   deleteDoc,
+  listAll,
+  deleteObject,
 } from "./firebase_config.js";
+import { sanitizeMasterPass, createDefaultMissionState, clampMissionCount, clampPhotoMissionCount, escapeHtml, DEFAULT_MASTER_PASS, DEFAULT_MISSION_TOTAL, DEFAULT_PHOTO_MISSION_COUNT } from "./utils.js";
 import { storeProjectContext } from "./project_context.js";
 
 const defaultTeamCount = 10;
-const DEFAULT_MISSION_TOTAL = 9;
-const DEFAULT_MASTER_PASS = "0313";
 let missionTotal = DEFAULT_MISSION_TOTAL;
 let globalMasterPass = DEFAULT_MASTER_PASS;
 const adminConfigDoc = doc(firestore, "adminSettings", "config");
@@ -28,6 +29,7 @@ const qrLibraryCollection = collection(firestore, "qrLibrary");
 
 const PROJECT_PAGE_SIZE = 10;
 let currentProjectPage = 1;
+let isProjectRefreshInProgress = false;
 
 const elements = {
   projectTableBody: document.querySelector("#projectTable tbody"),
@@ -70,9 +72,14 @@ const elements = {
   backgroundImagePreview: document.getElementById("backgroundImagePreview"),
   teamTableBody: document.querySelector("#teamTable tbody"),
   missionCountInput: document.getElementById("missionCountInput"),
+  photoMissionCountInput: document.getElementById("photoMissionCountInput"),
   saveBtn: document.getElementById("saveProjectBtn"),
   resetBtn: document.getElementById("resetResultsBtn"),
+  cloneBtn: document.getElementById("cloneProjectBtn"),
+  deletePhotosBtn: document.getElementById("deletePhotosBtn"),
+  photoCountNote: document.getElementById("photoCountNote"),
   openHQBtn: document.getElementById("openHQBtn"),
+  refreshStatus: document.getElementById("refreshStatus"),
   bulkCodeButton: document.getElementById("openBulkCodeModalBtn"),
   bulkCodeModal: document.getElementById("bulkCodeModal"),
   bulkCodeModalTitle: document.getElementById("bulkCodeModalTitle"),
@@ -83,6 +90,14 @@ const elements = {
   bulkCodeList: document.getElementById("bulkCodeList"),
   codeAssetSummary: document.getElementById("codeAssetSummary"),
   missionAssetSummary: document.getElementById("missionAssetSummary"),
+  photoConfigToggle: document.getElementById("photoConfigToggle"),
+  photoConfigPanel: document.getElementById("photoConfigPanel"),
+  photoConfigSelect: document.getElementById("photoConfigSelect"),
+  photoConfigSlotInput: document.getElementById("photoConfigSlotInput"),
+  photoConfigApply: document.getElementById("photoConfigApply"),
+  photoConfigClear: document.getElementById("photoConfigClear"),
+  photoConfigCurrent: document.getElementById("photoConfigCurrent"),
+  photoConfigClose: document.getElementById("photoConfigClose"),
   assetManageButtons: document.querySelectorAll(".asset-manage-btn"),
   assetModal: document.getElementById("assetModal"),
   assetModalTitle: document.getElementById("assetModalTitle"),
@@ -90,19 +105,13 @@ const elements = {
   assetModalCancel: document.getElementById("assetModalCancel"),
   assetCountInput: document.getElementById("assetCountInput"),
   assetSlotList: document.getElementById("assetSlotList"),
+  assetBulkDeleteBtn: document.getElementById("assetBulkDeleteBtn"),
   missionModal: document.getElementById("missionModal"),
   missionModalBody: document.getElementById("missionModalBody"),
   missionModalTitle: document.getElementById("missionModalTitle"),
   missionModalSave: document.getElementById("missionModalSave"),
   missionModalClose: document.getElementById("missionModalClose"),
   missionModalCancel: document.getElementById("missionModalCancel"),
-  photoConfigToggle: document.getElementById("photoConfigToggle"),
-  photoConfigPanel: document.getElementById("photoConfigPanel"),
-  photoConfigSelect: document.getElementById("photoConfigSelect"),
-  photoConfigApply: document.getElementById("photoConfigApply"),
-  photoConfigClear: document.getElementById("photoConfigClear"),
-  photoConfigCurrent: document.getElementById("photoConfigCurrent"),
-  photoConfigClose: document.getElementById("photoConfigClose"),
   qrManagerModal: document.getElementById("qrManagerModal"),
   qrManagerClose: document.getElementById("qrManagerClose"),
   missionQrCodeInput: document.getElementById("missionQrCodeInput"),
@@ -129,39 +138,27 @@ const missionAssets = {
   code: [],
   mission: [],
 };
+const assetSelections = {
+  code: new Set(),
+  mission: new Set(),
+};
 let activeAssetType = null;
 let assetModalCount = 0;
 const missionQrCache = new Map();
 let missionQrPreviewDataUrl = null;
 let missionQrCurrentCode = null;
 
-function escapeHtml(value = "") {
-  return String(value).replace(/[&<>"']/g, (ch) => {
-    switch (ch) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case '"':
-        return "&quot;";
-      case "'":
-        return "&#39;";
-      default:
-        return ch;
-    }
-  });
-}
+
 
 if (elements.missionCountInput) {
   updateMissionTotal(Number(elements.missionCountInput.value) || missionTotal);
 }
-
-function clampMissionCount(value) {
-  const num = Number.isFinite(value) ? value : DEFAULT_MISSION_TOTAL;
-  return Math.max(1, Math.min(20, num));
+if (elements.photoMissionCountInput) {
+  elements.photoMissionCountInput.value =
+    Number(elements.photoMissionCountInput.value) || DEFAULT_PHOTO_MISSION_COUNT;
 }
+
+
 
 const projectsRef = ref(db, "projects");
 
@@ -192,6 +189,14 @@ function init() {
   renderTeamRows(Number(elements.teamCountInput.value) || defaultTeamCount);
   attachEventHandlers();
   initGlobalControls();
+  if (elements.refreshBtn) {
+    elements.refreshBtn.disabled = false;
+    elements.refreshBtn.dataset.label = elements.refreshBtn.textContent || "새로고침";
+  }
+  if (elements.refreshStatus) {
+    elements.refreshStatus.textContent = "";
+  }
+  refreshPhotoCount();
   if (elements.photoConfigToggle) {
     elements.photoConfigToggle.disabled = true;
     elements.photoConfigToggle.setAttribute("aria-expanded", "false");
@@ -199,6 +204,7 @@ function init() {
   onValue(projectsRef, (snapshot) => {
     projectsCache = snapshot.val() || {};
     renderProjectList();
+    refreshPhotoCount();
     if (currentProjectId && projectsCache[currentProjectId]) {
       fillForm(currentProjectId);
     }
@@ -259,7 +265,7 @@ function attachEventHandlers() {
   }
 
   elements.refreshBtn.addEventListener("click", () => {
-    renderProjectList();
+    refreshProjectsFromRealtime();
   });
 
   elements.teamCountInput.addEventListener("change", () => {
@@ -327,6 +333,12 @@ function attachEventHandlers() {
       handlePhotoConfigApply();
     });
   }
+  if (elements.photoConfigSlotInput) {
+    elements.photoConfigSlotInput.addEventListener("change", () => {
+      const normalized = clampPhotoMissionCount(Number(elements.photoConfigSlotInput.value));
+      elements.photoConfigSlotInput.value = normalized;
+    });
+  }
   if (elements.photoConfigClear) {
     elements.photoConfigClear.addEventListener("click", () => {
       handlePhotoConfigClear();
@@ -359,6 +371,9 @@ function attachEventHandlers() {
       button.addEventListener("click", () => openAssetModal(button.dataset.assetType));
     });
   }
+  if (elements.assetBulkDeleteBtn) {
+    elements.assetBulkDeleteBtn.addEventListener("click", handleAssetBulkDelete);
+  }
 
   if (elements.assetModalClose) {
     elements.assetModalClose.addEventListener("click", closeAssetModal);
@@ -381,6 +396,12 @@ function attachEventHandlers() {
       renderAssetModalRows();
     });
   }
+  if (elements.photoMissionCountInput) {
+    elements.photoMissionCountInput.addEventListener("change", () => {
+      const next = clampPhotoMissionCount(Number(elements.photoMissionCountInput.value));
+      elements.photoMissionCountInput.value = next;
+    });
+  }
 
   attachPickerButton(elements.educationDateBtn, elements.educationDateInput);
   attachPickerButton(elements.educationTimeBtn, elements.educationTimeInput);
@@ -394,6 +415,12 @@ function attachEventHandlers() {
 
   elements.saveBtn.addEventListener("click", handleSaveProject);
   elements.resetBtn.addEventListener("click", handleResetResults);
+  if (elements.deletePhotosBtn) {
+    elements.deletePhotosBtn.addEventListener("click", handleDeletePhotos);
+  }
+  if (elements.cloneBtn) {
+    elements.cloneBtn.addEventListener("click", handleCloneProject);
+  }
   elements.openHQBtn.addEventListener("click", () => {
     const projectId = getProjectIdOrAlert("먼저 프로젝트를 선택하거나 저장하세요.");
     if (!projectId || !projectsCache[projectId]) {
@@ -412,6 +439,115 @@ function attachEventHandlers() {
     });
     window.open(`/hq.html?project=${encodeURIComponent(projectId)}`, "_blank");
   });
+}
+
+async function refreshProjectsFromRealtime() {
+  if (isProjectRefreshInProgress) return;
+  isProjectRefreshInProgress = true;
+  setRefreshLoading(true);
+  try {
+    const snapshot = await get(projectsRef);
+    projectsCache = snapshot?.val?.() || {};
+    renderProjectList();
+    if (currentProjectId && projectsCache[currentProjectId]) {
+      fillForm(currentProjectId);
+    }
+  } catch (error) {
+    console.error("프로젝트 목록을 불러오지 못했습니다.", error);
+    alert("프로젝트 목록을 불러오지 못했습니다. 다시 시도해 주세요.");
+  } finally {
+    setRefreshLoading(false);
+    isProjectRefreshInProgress = false;
+  }
+}
+
+function setRefreshLoading(active) {
+  const btn = elements.refreshBtn;
+  if (!btn) return;
+  if (active) {
+    btn.disabled = true;
+    const label = btn.dataset.label || "새로고침";
+    btn.textContent = `${label} 중...`;
+    btn.classList.add("btn-loading");
+  } else {
+    btn.disabled = false;
+    const label = btn.dataset.label || "새로고침";
+    btn.textContent = label;
+    btn.classList.remove("btn-loading");
+  }
+}
+
+function updateRefreshStatus(message) {
+  if (!elements.refreshStatus) return;
+  elements.refreshStatus.textContent = "";
+}
+
+async function handleCloneProject() {
+  const sourceId = getProjectIdOrAlert("먼저 복제할 프로젝트를 선택하거나 저장하세요.");
+  if (!sourceId || !projectsCache[sourceId]) return;
+  const newMaster = prompt("새 프로젝트의 마스터 비밀번호를 입력하세요.");
+  if (!newMaster) {
+    alert("마스터 비밀번호가 필요합니다.");
+    return;
+  }
+  const targetId = sanitizeKey(newMaster);
+  if (!targetId) {
+    alert("마스터 비밀번호에는 '.', '#', '$', '[', ']', '/' 문자를 사용할 수 없습니다.");
+    return;
+  }
+  if (projectsCache[targetId]) {
+    if (!confirm("같은 비밀번호의 프로젝트가 이미 있습니다. 덮어쓸까요?")) return;
+  }
+
+  const source = JSON.parse(JSON.stringify(projectsCache[sourceId] || {}));
+  const now = Date.now();
+  const meta = source.meta || {};
+  const missionTotalValue = clampMissionCount(meta.missionTotal || DEFAULT_MISSION_TOTAL);
+  const teams = source.teams || {};
+  const newTeams = {};
+  Object.entries(teams).forEach(([teamId, teamData], index) => {
+    const profile = teamData.profile || {};
+    newTeams[teamId] = {
+      profile,
+      config: teamData.config || {},
+      missions: createDefaultMissionState(missionTotalValue),
+    };
+    if (typeof profile.number !== "number") {
+      newTeams[teamId].profile.number = index + 1;
+    }
+  });
+
+  const newProject = {
+    ...source,
+    meta: {
+      ...meta,
+      id: targetId,
+      masterPassword: newMaster,
+      missionTotal: missionTotalValue,
+      createdAt: meta.createdAt || now,
+      updatedAt: now,
+    },
+    teams: newTeams,
+  };
+
+  // countdown, uploads, chat는 초기화
+  const updates = {
+    [`projects/${targetId}`]: newProject,
+    [`uploads_meta/${targetId}`]: null,
+    [`chat/${targetId}`]: null,
+  };
+
+  try {
+    await update(ref(db), updates);
+    projectsCache[targetId] = newProject;
+    currentProjectId = targetId;
+    fillForm(targetId);
+    renderProjectList();
+    alert(`프로젝트가 복제되었습니다: ${targetId}`);
+  } catch (error) {
+    console.error("프로젝트 복제 실패", error);
+    alert("프로젝트를 복제하지 못했습니다.");
+  }
 }
 
 function initGlobalControls() {
@@ -481,16 +617,13 @@ function toggleGlobalMasterPassEdit(active) {
   }
 }
 
-function sanitizeMasterPassValue(value = "") {
-  const trimmed = value.trim();
-  return trimmed || DEFAULT_MASTER_PASS;
-}
+
 
 async function loadGlobalMasterPassSetting() {
   try {
     const snapshot = await getDoc(adminConfigDoc);
     const data = snapshot.exists() ? snapshot.data() || {} : {};
-    globalMasterPass = sanitizeMasterPassValue(data.missionMasterPass || DEFAULT_MASTER_PASS);
+    globalMasterPass = sanitizeMasterPass(data.missionMasterPass || DEFAULT_MASTER_PASS);
   } catch (error) {
     console.error("마스터 정답을 불러오지 못했습니다.", error);
     await loadGlobalMasterPassFromRealtime();
@@ -506,7 +639,7 @@ async function loadGlobalMasterPassSetting() {
 
 async function handleSaveGlobalMasterPass() {
   if (!elements.globalMasterPassInput) return;
-  const value = sanitizeMasterPassValue(elements.globalMasterPassInput.value);
+  const value = sanitizeMasterPass(elements.globalMasterPassInput.value);
   try {
     await setDoc(adminConfigDoc, { missionMasterPass: value }, { merge: true });
     globalMasterPass = value;
@@ -536,7 +669,7 @@ async function loadGlobalMasterPassFromRealtime() {
     const snap = await get(ref(db, "adminSettings/config/missionMasterPass"));
     const val = snap?.val?.();
     if (val) {
-      globalMasterPass = sanitizeMasterPassValue(String(val));
+      globalMasterPass = sanitizeMasterPass(String(val));
     } else {
       globalMasterPass = DEFAULT_MASTER_PASS;
     }
@@ -1067,6 +1200,7 @@ function clearForm() {
   setEducationInputs(null);
   setActiveMissionTeam(null);
   renderProjectQrDisplay(null);
+  refreshPhotoCount();
 }
 
 function fillForm(projectId) {
@@ -1102,7 +1236,7 @@ function fillForm(projectId) {
         teamData.profile?.officialTeamName ||
         teamData.profile?.name ||
         teamId.replace("Team", "") + "팀",
-      password: teamData.profile?.password || "",
+      password: teamData.profile?.password ?? "",
     };
   });
   renderTeamRows(Number(elements.teamCountInput.value) || defaultTeamCount);
@@ -1110,6 +1244,7 @@ function fillForm(projectId) {
   loadMissionConfigs(project);
   loadMissionAssets(project);
   renderProjectQrDisplay(projectId);
+  refreshPhotoCount();
   markActiveProjectRow();
 }
 
@@ -1120,8 +1255,16 @@ function renderTeamRows(count) {
     if (!teamProfiles[teamId]) {
       teamProfiles[teamId] = { name: `${i}팀`, password: `T${i}` };
     } else {
-      if (!teamProfiles[teamId].name) teamProfiles[teamId].name = `${i}팀`;
-      if (!teamProfiles[teamId].password) teamProfiles[teamId].password = `T${i}`;
+      if (teamProfiles[teamId].name === undefined || teamProfiles[teamId].name === null) {
+        teamProfiles[teamId].name = `${i}팀`;
+      }
+      if (
+        teamProfiles[teamId].password === undefined ||
+        teamProfiles[teamId].password === null ||
+        teamProfiles[teamId].password === ""
+      ) {
+        teamProfiles[teamId].password = `T${i}`;
+      }
     }
     const profile = teamProfiles[teamId];
     const safeName = escapeHtml(profile.name || `${i}팀`);
@@ -1235,6 +1378,30 @@ function createDefaultMissionEntry() {
   };
 }
 
+function syncEntryAnswerCode(entry = {}) {
+  if (!entry) return;
+  const codeValue = (entry.codeAnswer || "").trim();
+  if (codeValue) {
+    entry.answerCode = codeValue;
+    return;
+  }
+  if (!entry.answerCode && entry.missionAnswer) {
+    entry.answerCode = entry.missionAnswer;
+  }
+}
+
+function normalizePhotoSlots(entry = {}) {
+  if (!entry) return;
+  if (!entry.photoTarget) {
+    entry.photoSlots = 0;
+    entry.specialSlots = 0;
+    return;
+  }
+  const defaultSlots = getPhotoMissionDefaultCount();
+  const slots = Number(entry.photoSlots) || 0;
+  entry.photoSlots = slots > 0 ? slots : defaultSlots;
+}
+
 function describePhotoSlotStatus(entry = {}) {
   const target = entry.photoTarget || "";
   if (target === "code") return "코드 사진 미션";
@@ -1252,16 +1419,19 @@ function hasPhotoRequirement(entry = {}) {
   return Boolean(entry.photoTarget) || slots > 0;
 }
 
-function updateThumbBadge(container, enabled) {
+function updateThumbBadge(container, enabled, count = 0) {
   if (!container) return;
   container.classList.toggle("photo-selected", enabled);
   let badge = container.querySelector(".thumb-badge");
   if (enabled) {
+    const label = count > 0 ? `사진 미션 P${count}` : "사진 미션";
     if (!badge) {
       badge = document.createElement("span");
       badge.className = "thumb-badge";
-      badge.textContent = "사진 미션";
+      badge.textContent = label;
       container.appendChild(badge);
+    } else {
+      badge.textContent = label;
     }
   } else if (badge) {
     badge.remove();
@@ -1275,6 +1445,9 @@ function ensureMissionConfig(teamId) {
   const config = missionConfigs[teamId];
   for (let i = 1; i <= missionTotal; i++) {
     if (!config[i]) config[i] = createDefaultMissionEntry();
+    const entry = config[i];
+    syncEntryAnswerCode(entry);
+    normalizePhotoSlots(entry);
   }
   Object.keys(config).forEach((key) => {
     if (Number(key) > missionTotal) delete config[key];
@@ -1289,6 +1462,8 @@ function normalizeMissionConfig(source = {}) {
     if (source[i]) {
       base[i] = { ...base[i], ...source[i] };
     }
+    syncEntryAnswerCode(base[i]);
+    normalizePhotoSlots(base[i]);
   }
   return base;
 }
@@ -1345,6 +1520,36 @@ function updateAssetSummary(type) {
   target.textContent = count ? `${count}개 등록됨` : "등록된 이미지가 없습니다.";
 }
 
+function getAssetSelectionSet(type = "code") {
+  const key = type === "mission" ? "mission" : "code";
+  if (!assetSelections[key]) {
+    assetSelections[key] = new Set();
+  }
+  return assetSelections[key];
+}
+
+function clearAssetSelection(type = "code") {
+  getAssetSelectionSet(type).clear();
+  updateAssetDeleteButton();
+}
+
+function toggleAssetSelection(type, assetId, checked) {
+  if (!assetId) return;
+  const set = getAssetSelectionSet(type);
+  if (checked) set.add(assetId);
+  else set.delete(assetId);
+  updateAssetDeleteButton();
+}
+
+function updateAssetDeleteButton() {
+  const btn = elements.assetBulkDeleteBtn;
+  if (!btn) return;
+  const currentType = activeAssetType || "code";
+  const count = getAssetSelectionSet(currentType).size;
+  btn.disabled = !activeAssetType || count === 0;
+  btn.textContent = count ? `선택 삭제 (${count})` : "선택 삭제";
+}
+
 function formatAssetLabel(asset = {}) {
   const base = asset.name || "이미지";
   if (base.length <= 18) return base;
@@ -1362,6 +1567,7 @@ function attachPickerButton(button, input) {
 function openAssetModal(type = "code") {
   const normalized = type === "mission" ? "mission" : "code";
   activeAssetType = normalized;
+  clearAssetSelection(normalized);
   const assets = missionAssets[normalized] || [];
   assetModalCount = Math.max(1, assets.length || 1);
   if (elements.assetCountInput) {
@@ -1372,6 +1578,7 @@ function openAssetModal(type = "code") {
     elements.assetModalTitle.textContent = `${label} 라이브러리 관리`;
   }
   renderAssetModalRows();
+  updateAssetDeleteButton();
   elements.assetModal?.classList.add("active");
   if (elements.assetModal) elements.assetModal.hidden = false;
 }
@@ -1380,7 +1587,9 @@ function closeAssetModal() {
   if (!elements.assetModal) return;
   elements.assetModal.classList.remove("active");
   elements.assetModal.hidden = true;
+  clearAssetSelection(activeAssetType || "code");
   activeAssetType = null;
+  updateAssetDeleteButton();
 }
 
 function renderAssetModalRows() {
@@ -1391,6 +1600,12 @@ function renderAssetModalRows() {
     return;
   }
   const library = missionAssets[activeAssetType] || [];
+  const selection = getAssetSelectionSet(activeAssetType);
+  selection.forEach((id) => {
+    if (!library.some((asset) => asset.id === id)) {
+      selection.delete(id);
+    }
+  });
   const count = Math.max(1, assetModalCount || library.length || 1);
   assetModalCount = count;
   if (elements.assetCountInput) {
@@ -1402,19 +1617,25 @@ function renderAssetModalRows() {
     const asset =
       getAssetByOrder(activeAssetType, slotOrder) || library[i] || null;
     const hasImage = Boolean(asset?.url);
+    const isSelected = asset?.id && selection.has(asset.id);
     rows.push(`
-      <div class="asset-slot" data-slot="${i}" data-order="${slotOrder}" data-asset-id="${
-        asset?.id || ""
+      <div class="asset-slot" data-slot="${i}" data-order="${slotOrder}" data-asset-id="${asset?.id || ""
       }">
-        <div class="asset-slot-index">${slotOrder}</div>
+        <div class="asset-slot-header">
+          <div class="asset-slot-index">${slotOrder}</div>
+          <label class="asset-slot-select">
+            <input type="checkbox" class="asset-slot-checkbox" data-slot="${i}" ${asset?.id ? "" : "disabled"
+      } ${isSelected ? "checked" : ""} />
+            삭제 선택
+          </label>
+        </div>
         <div class="asset-slot-body">
           <input class="asset-slot-name" value="${escapeHtml(asset?.name || "")}" placeholder="이미지 이름" />
           <div class="asset-drop-zone ${hasImage ? "has-image" : ""}" data-slot="${i}">
-            ${
-              hasImage
-                ? `<img src="${escapeHtml(asset.url)}" alt="asset ${slotOrder}" />`
-                : "<span>파일을 끌어다 놓거나 클릭하여 업로드하세요.</span>"
-            }
+            ${hasImage
+        ? `<img src="${escapeHtml(asset.url)}" alt="asset ${slotOrder}" />`
+        : "<span>파일을 끌어다 놓거나 클릭하여 업로드하세요.</span>"
+      }
             <input type="file" accept="image/*" hidden />
           </div>
           <div class="asset-slot-status">${hasImage ? "업로드됨" : "미등록"}</div>
@@ -1424,12 +1645,23 @@ function renderAssetModalRows() {
   }
   elements.assetSlotList.innerHTML = rows.join("");
   attachAssetSlotHandlers();
+  updateAssetDeleteButton();
 }
 
 function attachAssetSlotHandlers() {
   if (!elements.assetSlotList) return;
   elements.assetSlotList.querySelectorAll(".asset-slot").forEach((slot) => {
     const slotIndex = Number(slot.dataset.slot);
+    const assetId = slot.dataset.assetId || "";
+    const type = activeAssetType || "code";
+    const checkbox = slot.querySelector(".asset-slot-checkbox");
+    if (checkbox) {
+      checkbox.checked = Boolean(assetId && getAssetSelectionSet(type).has(assetId));
+      checkbox.disabled = !assetId;
+      checkbox.addEventListener("change", () => {
+        toggleAssetSelection(type, assetId, checkbox.checked);
+      });
+    }
     const nameInput = slot.querySelector(".asset-slot-name");
     if (nameInput) {
       nameInput.addEventListener("change", () => {
@@ -1522,6 +1754,57 @@ async function handleAssetFileSelection(slotIndex, file, dropZone) {
     if (statusEl) statusEl.textContent = "업로드 실패";
     renderAssetModalRows();
   }
+}
+
+async function handleAssetBulkDelete() {
+  if (!activeAssetType) return;
+  const projectId = getProjectIdOrAlert("먼저 프로젝트를 선택하거나 저장하세요.");
+  if (!projectId) return;
+  const selection = Array.from(getAssetSelectionSet(activeAssetType));
+  if (!selection.length) {
+    alert("삭제할 이미지를 선택하세요.");
+    return;
+  }
+  const library = missionAssets[activeAssetType] || [];
+  const targets = library.filter((asset) => selection.includes(asset.id));
+  if (!targets.length) {
+    clearAssetSelection(activeAssetType);
+    alert("선택한 이미지가 없습니다.");
+    return;
+  }
+  if (!confirm(`선택한 ${targets.length}개 이미지를 삭제할까요?`)) return;
+  const assetKey = getAssetBucketKey(activeAssetType);
+  const updates = {};
+  targets.forEach((asset) => {
+    updates[`projects/${projectId}/assets/${assetKey}/${asset.id}`] = null;
+  });
+  try {
+    await update(ref(db), updates);
+  } catch (error) {
+    console.error(error);
+    alert("이미지 삭제 중 오류가 발생했습니다.");
+    return;
+  }
+  for (const asset of targets) {
+    if (!asset?.path) continue;
+    try {
+      await deleteObject(sRef(storage, asset.path));
+    } catch (error) {
+      console.warn("이미지 파일 삭제 실패", asset.path, error);
+    }
+  }
+  missionAssets[activeAssetType] = library.filter((asset) => !selection.includes(asset.id));
+  if (projectsCache[projectId]?.assets?.[assetKey]) {
+    selection.forEach((id) => {
+      delete projectsCache[projectId].assets[assetKey][id];
+    });
+  }
+  clearAssetSelection(activeAssetType);
+  sortMissionAssets(activeAssetType);
+  assetModalCount = Math.max(1, missionAssets[activeAssetType].length || 1);
+  refreshMissionAssetLists();
+  renderAssetModalRows();
+  alert("선택한 이미지가 삭제되었습니다.");
 }
 
 function getAssetByOrder(type, order) {
@@ -1643,10 +1926,10 @@ function openMissionModal(teamId = null) {
   }
   setActiveMissionTeam(targetTeamId);
   if (elements.missionModalTitle) {
-  elements.missionModalTitle.textContent = `문제 입력 (${getTeamDisplayLabel(targetTeamId)})`;
-}
-renderMissionModalRows(targetTeamId);
-elements.missionModal?.classList.add("active");
+    elements.missionModalTitle.textContent = `문제 입력 (${getTeamDisplayLabel(targetTeamId)})`;
+  }
+  renderMissionModalRows(targetTeamId);
+  elements.missionModal?.classList.add("active");
   if (elements.missionModal) elements.missionModal.hidden = false;
   closePhotoConfigPanel();
   if (elements.photoConfigToggle) {
@@ -1710,6 +1993,7 @@ function renderPhotoConfigPanel(teamId) {
     elements.photoConfigSelect.value = elements.photoConfigSelect.options[0].value;
   }
   elements.photoConfigSelect.dataset.lastValue = elements.photoConfigSelect.value;
+  syncPhotoSlotInput(teamId);
   updatePhotoConfigPreview(teamId);
 }
 
@@ -1727,19 +2011,31 @@ function parsePhotoConfigSelection(value = "") {
   return {};
 }
 
+function syncPhotoSlotInput(teamId) {
+  if (!elements.photoConfigSlotInput || !elements.photoConfigSelect) return;
+  const selection = parsePhotoConfigSelection(elements.photoConfigSelect.value);
+  if (!selection.missionNumber || !teamId) return;
+  const entry = ensureMissionConfig(teamId)[selection.missionNumber] || {};
+  const slots = resolvePhotoSlotInput(entry.photoSlots);
+  elements.photoConfigSlotInput.value = slots;
+}
+
 function updatePhotoConfigPreview(teamId) {
   if (!elements.photoConfigCurrent || !elements.photoConfigSelect) return;
   const selection = parsePhotoConfigSelection(elements.photoConfigSelect.value);
   elements.photoConfigSelect.dataset.lastValue = elements.photoConfigSelect.value;
+  if (elements.photoConfigSlotInput) {
+    syncPhotoSlotInput(teamId);
+  }
   if (!selection.missionNumber || !teamId) {
     elements.photoConfigCurrent.textContent = "-";
     return;
   }
   const entry = ensureMissionConfig(teamId)[selection.missionNumber] || {};
   if (entry.photoTarget === "code") {
-    elements.photoConfigCurrent.textContent = `${selection.label} · 코드 사진 미션`;
+    elements.photoConfigCurrent.textContent = `${selection.label} · 코드 사진 미션 (${entry.photoSlots || getPhotoMissionDefaultCount()}장)`;
   } else if (entry.photoTarget === "mission") {
-    elements.photoConfigCurrent.textContent = `${selection.label} · 미션 사진 미션`;
+    elements.photoConfigCurrent.textContent = `${selection.label} · 미션 사진 미션 (${entry.photoSlots || getPhotoMissionDefaultCount()}장)`;
   } else {
     elements.photoConfigCurrent.textContent = `${selection.label} · 사진 미션 미설정`;
   }
@@ -1752,7 +2048,11 @@ function handlePhotoConfigApply() {
     alert("먼저 구간을 선택하세요.");
     return;
   }
+  const slots = resolvePhotoSlotInput();
   applyPhotoTarget(activeMissionTeam, selection.missionNumber, selection.target);
+  const entry = ensureMissionConfig(activeMissionTeam)[selection.missionNumber];
+  entry.photoSlots = slots;
+  normalizePhotoSlots(entry);
   elements.photoConfigSelect.dataset.lastValue = elements.photoConfigSelect.value;
   refreshMissionPhotoIndicators(activeMissionTeam);
   updatePhotoConfigPreview(activeMissionTeam);
@@ -1767,6 +2067,9 @@ function handlePhotoConfigClear() {
     return;
   }
   applyPhotoTarget(activeMissionTeam, selection.missionNumber, "");
+  if (elements.photoConfigSlotInput) {
+    elements.photoConfigSlotInput.value = getPhotoMissionDefaultCount();
+  }
   refreshMissionPhotoIndicators(activeMissionTeam);
   updatePhotoConfigPreview(activeMissionTeam);
   updateTeamStatusDisplay(activeMissionTeam);
@@ -1777,7 +2080,8 @@ function applyPhotoTarget(teamId, missionNumber, target) {
   const entry = config[missionNumber];
   entry.photoTarget = target || "";
   if (entry.photoTarget) {
-    entry.photoSlots = entry.photoSlots && entry.photoSlots > 0 ? entry.photoSlots : 1;
+    const desiredSlots = resolvePhotoSlotInput(entry.photoSlots);
+    entry.photoSlots = desiredSlots;
   } else {
     entry.photoSlots = 0;
     entry.specialSlots = 0;
@@ -1837,9 +2141,11 @@ function renderMissionModalRows(teamId) {
     const photoSlots = Number(mission.photoSlots) || 0;
     const specialSlots = Number(mission.specialSlots) || 0;
     const photoTarget = mission.photoTarget || "";
+    normalizePhotoSlots(mission);
     const hasPhotoMission = Boolean(photoTarget) || photoSlots + specialSlots > 0;
     const codePhotoSelected = photoTarget === "code";
     const missionPhotoSelected = photoTarget === "mission";
+    const photoBadgeLabel = mission.photoSlots ? `사진 미션 P${mission.photoSlots}` : "사진 미션";
     rows.push(`
       <tr data-mission="${i}" class="${hasPhotoMission ? "photo-mission-row" : ""}">
         <td>${i}</td>
@@ -1852,13 +2158,12 @@ function renderMissionModalRows(teamId) {
         <td class="media-cell">
           <div class="mission-media">
             <div class="mission-thumb code-thumb${codePhotoSelected ? " photo-selected" : ""}" data-type="code" data-mission="${i}">
-              ${
-                codeImage
-                  ? `<img src="${codeImage}" alt="CODE ${i}" />`
-                  : '<span class="thumb-placeholder">이미지 없음</span>'
-              }
+              ${codeImage
+        ? `<img src="${codeImage}" alt="CODE ${i}" />`
+        : '<span class="thumb-placeholder">이미지 없음</span>'
+      }
               <span class="thumb-hint">드래그 또는 터치</span>
-              ${codePhotoSelected ? '<span class="thumb-badge">사진 미션</span>' : ""}
+              ${codePhotoSelected ? `<span class="thumb-badge">${photoBadgeLabel}</span>` : ""}
               <input type="file" class="mission-code-file" data-type="code" accept="image/*" hidden />
             </div>
             <div class="media-controls">
@@ -1874,13 +2179,12 @@ function renderMissionModalRows(teamId) {
         <td class="media-cell">
           <div class="mission-media">
             <div class="mission-thumb answer-thumb${missionPhotoSelected ? " photo-selected" : ""}" data-type="mission" data-mission="${i}">
-              ${
-                missionImage
-                  ? `<img src="${missionImage}" alt="MISSION ${i}" />`
-                  : '<span class="thumb-placeholder">이미지 없음</span>'
-              }
+              ${missionImage
+        ? `<img src="${missionImage}" alt="MISSION ${i}" />`
+        : '<span class="thumb-placeholder">이미지 없음</span>'
+      }
               <span class="thumb-hint">드래그 또는 터치</span>
-              ${missionPhotoSelected ? '<span class="thumb-badge">사진 미션</span>' : ""}
+              ${missionPhotoSelected ? `<span class="thumb-badge">${photoBadgeLabel}</span>` : ""}
               <input type="file" class="mission-answer-file" data-type="mission" accept="image/*" hidden />
             </div>
             <div class="media-controls">
@@ -1942,6 +2246,25 @@ function getMissionAssetCode(asset = {}) {
   return asset?.id || "";
 }
 
+function getPhotoMissionDefaultCount() {
+  const input = elements.photoMissionCountInput;
+  const value = input ? Number(input.value) : DEFAULT_PHOTO_MISSION_COUNT;
+  const normalized = clampPhotoMissionCount(value);
+  if (input && input.value !== String(normalized)) {
+    input.value = normalized;
+  }
+  return normalized;
+}
+
+function resolvePhotoSlotInput(currentSlots = 0) {
+  if (!elements.photoConfigSlotInput) return currentSlots || getPhotoMissionDefaultCount();
+  const raw = Number(elements.photoConfigSlotInput.value);
+  if (Number.isFinite(raw) && raw > 0) return clampPhotoMissionCount(raw);
+  const fallback = currentSlots || getPhotoMissionDefaultCount();
+  elements.photoConfigSlotInput.value = fallback;
+  return fallback;
+}
+
 function findMissionAssetById(assetId = "") {
   if (!assetId) return null;
   return (missionAssets.mission || []).find((asset) => asset.id === assetId) || null;
@@ -1964,6 +2287,7 @@ function applyAnswerSelection(teamId, missionNumber, assetId, options = {}) {
     entry.answerImageUrl = "";
     if (updateCodeAnswer) entry.codeAnswer = "";
     entry.missionAnswer = "";
+    syncEntryAnswerCode(entry);
     return entry;
   }
   const asset = findMissionAssetById(assetId);
@@ -1977,6 +2301,7 @@ function applyAnswerSelection(teamId, missionNumber, assetId, options = {}) {
   entry.answerImageUrl = asset?.url || "";
   entry.codeImageUrl = asset?.url || entry.codeImageUrl || "";
   entry.missionImageUrl = asset?.url || entry.missionImageUrl || "";
+  syncEntryAnswerCode(entry);
   return entry;
 }
 
@@ -2015,6 +2340,8 @@ function attachMissionModalHandlers(teamId) {
       codeInput.addEventListener("input", () => {
         const value = codeInput.value.trim();
         config[missionNumber].codeAnswer = value;
+        config[missionNumber].answerCode = value;
+        syncEntryAnswerCode(config[missionNumber]);
         updateTeamStatusDisplay(teamId);
         ensureMissionQrExists(value);
       });
@@ -2024,7 +2351,10 @@ function attachMissionModalHandlers(teamId) {
       missionInput.addEventListener("input", () => {
         const value = missionInput.value.trim();
         config[missionNumber].missionAnswer = value;
-        config[missionNumber].answerCode = value || config[missionNumber].answerCode || "";
+        if (!config[missionNumber].codeAnswer) {
+          config[missionNumber].answerCode = value || config[missionNumber].answerCode || "";
+        }
+        syncEntryAnswerCode(config[missionNumber]);
         updateTeamStatusDisplay(teamId);
         ensureMissionQrExists(value || config[missionNumber].answerCode || "");
       });
@@ -2051,7 +2381,8 @@ function attachMissionModalHandlers(teamId) {
             thumbEl.innerHTML = `<img src="${safeUrl}" alt="${type === "code" ? "CODE" : "MISSION"} ${missionNumber}" />`;
             updateThumbBadge(
               thumbEl,
-              config[missionNumber].photoTarget === (type === "code" ? "code" : "mission")
+              config[missionNumber].photoTarget === (type === "code" ? "code" : "mission"),
+              config[missionNumber].photoSlots
             );
           }
           updateTeamStatusDisplay(teamId);
@@ -2089,9 +2420,10 @@ function refreshMissionPhotoIndicators(teamId) {
   elements.missionModalBody.querySelectorAll("tr[data-mission]").forEach((row) => {
     const missionNumber = Number(row.dataset.mission);
     const entry = config[missionNumber] || {};
+    normalizePhotoSlots(entry);
     row.classList.toggle("photo-mission-row", hasPhotoRequirement(entry));
-    updateThumbBadge(row.querySelector(".code-thumb"), entry.photoTarget === "code");
-    updateThumbBadge(row.querySelector(".answer-thumb"), entry.photoTarget === "mission");
+    updateThumbBadge(row.querySelector(".code-thumb"), entry.photoTarget === "code", entry.photoSlots);
+    updateThumbBadge(row.querySelector(".answer-thumb"), entry.photoTarget === "mission", entry.photoSlots);
   });
   if (photoConfigVisible) {
     updatePhotoConfigPreview(teamId);
@@ -2126,7 +2458,7 @@ function handleAssetSelectChange({ teamId, missionNumber, select }) {
     statusEl.textContent = "미입력";
     thumbEl.innerHTML = "";
   }
-  updateThumbBadge(thumbEl, config[missionNumber].photoTarget === type);
+  updateThumbBadge(thumbEl, config[missionNumber].photoTarget === type, config[missionNumber].photoSlots);
   updateTeamStatusDisplay(teamId);
 }
 
@@ -2147,6 +2479,8 @@ function applyBulkCodesFromModal() {
     Object.keys(teamProfiles).forEach((teamId) => {
       const config = ensureMissionConfig(teamId);
       config[missionNumber].codeAnswer = value;
+      config[missionNumber].answerCode = value;
+      syncEntryAnswerCode(config[missionNumber]);
       // 미션 정답은 변경하지 않습니다.
     });
 
@@ -2319,7 +2653,7 @@ async function handleSaveProject() {
   const educationAt = composeEducationTimestamp();
   const startAt = educationAt ?? null;
   const endAt = educationAt ?? null;
-  const missionMasterPass = sanitizeMasterPassValue(globalMasterPass);
+  const missionMasterPass = sanitizeMasterPass(globalMasterPass);
   const meta = {
     id: projectId,
     name: elements.projectNameInput.value.trim() || masterPassword,
@@ -2354,11 +2688,15 @@ async function handleSaveProject() {
   updates[`projects/${projectId}/countdown`] = countdownPayload || null;
 
   Object.entries(teams).forEach(([teamId, profile]) => {
-    updates[`projects/${projectId}/teams/${teamId}/profile`] = profile;
-    updates[`projects/${projectId}/teams/${teamId}/config/missions`] = ensureMissionConfig(teamId);
-    if (!projectsCache[projectId]?.teams?.[teamId]?.missions) {
-      updates[`projects/${projectId}/teams/${teamId}/missions`] = createDefaultMissionState(missionTotal);
+    const existingFinished = projectsCache[projectId]?.teams?.[teamId]?.profile?.finishedAt;
+    const profileWithTotal = { ...profile, missionTotal };
+    if (existingFinished != null) {
+      profileWithTotal.finishedAt = existingFinished;
     }
+    updates[`projects/${projectId}/teams/${teamId}/profile`] = profileWithTotal;
+    updates[`projects/${projectId}/teams/${teamId}/config/missions`] = ensureMissionConfig(teamId);
+    const existingMissions = projectsCache[projectId]?.teams?.[teamId]?.missions || {};
+    updates[`projects/${projectId}/teams/${teamId}/missions`] = normalizeMissionsForTotal(existingMissions, missionTotal);
   });
 
   const existingTeams = Object.keys(projectsCache[projectId]?.teams || {});
@@ -2390,11 +2728,13 @@ function collectTeamProfiles() {
     const number = index + 1;
     const fallbackName = `${number}팀`;
     const fallbackPassword = `T${number}`;
+    const nameValue = inputs[0].value.trim();
+    const passwordValue = inputs[1].value.trim();
     teams[teamId] = {
-      name: inputs[0].value.trim() || fallbackName,
-      teamDisplayName: inputs[0].value.trim() || fallbackName,
-      officialTeamName: inputs[0].value.trim() || fallbackName,
-      password: inputs[1].value.trim() || fallbackPassword,
+      name: nameValue || fallbackName,
+      teamDisplayName: nameValue || fallbackName,
+      officialTeamName: nameValue || fallbackName,
+      password: passwordValue || fallbackPassword,
       number,
     };
   });
@@ -2412,13 +2752,22 @@ async function handleResetResults() {
   }
   const updates = {};
   const teams = Object.keys(projectsCache[projectId]?.teams || {});
-  teams.forEach((teamId) => {
+  teams.forEach((teamId, index) => {
     updates[`projects/${projectId}/teams/${teamId}/missions`] = createDefaultMissionState(missionTotal);
+    updates[`projects/${projectId}/teams/${teamId}/profile`] = {
+      name: "",
+      teamDisplayName: "",
+      officialTeamName: "",
+      password: "",
+      number: index + 1,
+    };
   });
   updates[`uploads_meta/${projectId}`] = null;
   updates[`chat/${projectId}`] = null;
   try {
     await update(ref(db), updates);
+    teamProfiles = {};
+    renderTeamRows(Number(elements.teamCountInput.value) || defaultTeamCount);
     alert("진행 결과가 초기화되었습니다.");
   } catch (error) {
     console.error(error);
@@ -2426,15 +2775,101 @@ async function handleResetResults() {
   }
 }
 
-function createDefaultMissionState(total = missionTotal) {
-  const state = {};
-  for (let i = 1; i <= total; i++) {
-    state[i] = {
-      stage: i === 1 ? "code" : "locked",
-      panel: null,
-    };
+async function handleDeletePhotos() {
+  const projectId = getProjectIdOrAlert("먼저 프로젝트를 선택하거나 저장하세요.");
+  if (!projectId) return;
+  if (!confirm("이 프로젝트의 모든 업로드 사진/영상 메타데이터를 삭제할까요?")) return;
+  if (!confirm("스토리지에 업로드된 파일도 함께 삭제됩니다. 진행할까요?")) return;
+  try {
+    await update(ref(db), {
+      [`uploads_meta/${projectId}`]: null,
+    });
+  } catch (error) {
+    console.error("업로드 메타 삭제 실패", error);
+    alert("사진 메타데이터를 삭제하지 못했습니다.");
+    return;
   }
-  return state;
+  try {
+    await deleteProjectUploadsFromStorage(projectId);
+  } catch (error) {
+    console.warn("스토리지 사진 삭제 중 오류", error);
+  }
+  refreshPhotoCount();
+  alert("사진 데이터가 삭제되었습니다.");
+}
+
+async function deleteProjectUploadsFromStorage(projectId) {
+  if (!projectId) return;
+  const baseRef = sRef(storage, `uploads/${projectId}`);
+  await deleteFolderRecursively(baseRef);
+}
+
+async function deleteFolderRecursively(folderRef) {
+  const list = await listAll(folderRef);
+  const deletions = [];
+  list.items.forEach((item) => {
+    deletions.push(
+      deleteObject(item).catch((error) => {
+        console.warn("파일 삭제 실패", item.fullPath, error);
+      })
+    );
+  });
+  for (const prefix of list.prefixes) {
+    deletions.push(deleteFolderRecursively(prefix));
+  }
+  await Promise.all(deletions);
+}
+
+
+
+function normalizeMissionsForTotal(missions = {}, total = missionTotal) {
+  const normalized = createDefaultMissionState(total);
+  Object.entries(missions || {}).forEach(([key, value]) => {
+    const idx = Number(key);
+    if (!Number.isFinite(idx) || idx < 1 || idx > total) return;
+    const stage =
+      typeof value.stage === "string" && value.stage.trim()
+        ? value.stage.trim()
+        : normalized[idx].stage;
+    const panel = value.panel ?? null;
+    normalized[idx] = { stage, panel };
+  });
+  // 첫 미션은 최소 code로 유지
+  if (normalized[1] && normalized[1].stage !== "done" && normalized[1].stage !== "mission") {
+    normalized[1].stage = "code";
+    normalized[1].panel = null;
+  }
+  return normalized;
+}
+
+async function refreshPhotoCount() {
+  if (!elements.photoCountNote) return;
+  const projectId = resolveProjectId();
+  if (!projectId) {
+    elements.photoCountNote.textContent = "사진 0개";
+    return;
+  }
+  try {
+    const snap = await get(ref(db, `uploads_meta/${projectId}`));
+    const data = snap?.val?.() || {};
+    const total = countUploads(data);
+    elements.photoCountNote.textContent = `사진 ${total}개`;
+  } catch (error) {
+    console.error("사진 개수 확인 실패", error);
+    elements.photoCountNote.textContent = "사진 -개";
+  }
+}
+
+function countUploads(data = {}) {
+  let count = 0;
+  Object.values(data || {}).forEach((missions) => {
+    Object.values(missions || {}).forEach((slots) => {
+      Object.values(slots || {}).forEach((item) => {
+        if (item?.url) count += 1;
+      });
+    });
+  });
+  return count;
 }
 
 function formatDateTime(timestamp) {

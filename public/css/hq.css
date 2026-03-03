@@ -130,6 +130,14 @@ body {
   color: #f8fafc;
 }
 
+.rank-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  gap: 4px;
+}
+
 .rank-order {
   width: 28px;
   height: 28px;
@@ -162,6 +170,15 @@ body {
   font-weight: 700;
   color: #4cc9f0;
   font-size: 16px;
+}
+
+.rank-finish-time {
+  font-size: 12px;
+  color: #cbd5f5;
+  font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 2px 8px;
 }
 
 .rank-empty {
@@ -435,6 +452,8 @@ body {
   border-left: 2px solid #222;
   padding: 20px;
   gap: 16px;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .time-panel {
@@ -442,6 +461,7 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .time-label {
@@ -467,66 +487,21 @@ body {
   min-height: 18px;
 }
 
-.finish-list {
-  display: none;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 10px;
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.25);
-}
-
-.finish-list.finish-list--visible {
-  display: block;
-}
-
-.finish-title {
-  margin: 0 0 8px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #cbd5f5;
-}
-
-.finish-list__body {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.finish-team {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 13px;
-  color: #e2e8f0;
-}
-
-.finish-team__time {
-  font-variant-numeric: tabular-nums;
-  color: #ffd966;
-  font-weight: 600;
-}
-
-.finish-empty {
-  font-size: 12px;
-  color: #94a3b8;
-  text-align: center;
-  margin: 4px 0;
-}
-
 .chatbox {
   background-color: rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   padding: 16px;
   width: 100%;
-  height: 320px;
+  min-height: 360px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.25);
+  position: sticky;
+  bottom: 20px;
+  flex: 1 0 auto;
+  max-height: calc(100vh - 220px);
+  overflow: hidden;
 }
 
 .chat-tabs {
@@ -568,15 +543,26 @@ body {
 }
 
 .messages {
-  flex-grow: 1;
+  flex: 1 1 auto;
   overflow-y: auto;
   font-size: 13px;
   color: #ddd;
+  min-height: 0;
+  padding-right: 2px;
 }
 
 .input-area {
   display: flex;
   gap: 6px;
+  flex-shrink: 0;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    to bottom,
+    rgba(11, 20, 31, 0),
+    rgba(11, 20, 31, 0.7) 50%,
+    rgba(11, 20, 31, 0.85)
+  );
 }
 
 .input-area input {
@@ -862,6 +848,10 @@ body {
     height: auto;
   }
 
+  .right-panel {
+    overflow: visible;
+  }
+
   .center-panel {
     order: 2;
     justify-content: center;
@@ -874,6 +864,11 @@ body {
   .team-left {
     align-items: center;
     text-align: center;
+  }
+
+  .chatbox {
+    position: static;
+    max-height: none;
   }
 }
 

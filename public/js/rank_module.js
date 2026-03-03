@@ -9,6 +9,8 @@ const DEFAULT_TEAMS = [
 ];
 
 const DEFAULT_TOTAL_MISSIONS = 9;
+const MIN_MISSIONS = 1;
+const MAX_MISSIONS = 50;
 
 function resolveOfficialTeamName(profile = {}, teamId = "", fallbackNumber = null) {
   return (
@@ -29,23 +31,55 @@ export function initRankModule({
   missionTotal = DEFAULT_TOTAL_MISSIONS,
   onChange = null,
   includeNickname = false,
+  showFinishTime = false,
+  finishTimeFormatter = null,
 } = {}) {
   const listEl = document.getElementById(listId);
   if (!listEl) {
     return { update: () => {} };
   }
+  const normalizedMissionTotal = clampMissionTotal(missionTotal);
 
   const button = simulateButtonId ? document.getElementById(simulateButtonId) : null;
+  const formatFinishTime =
+    typeof finishTimeFormatter === "function" ? finishTimeFormatter : defaultFinishTimeFormatter;
+  function normalizeTeamList(list = []) {
+    return Array.isArray(list)
+      ? list.map((entry) => ({
+          ...entry,
+          finishedAt: normalizeFinishTimestamp(entry.finishedAt),
+        }))
+      : [];
+  }
+
   let state = Array.isArray(teams) ? [...teams] : [...DEFAULT_TEAMS];
   if (projectId) {
     state = [];
+  } else {
+    state = normalizeTeamList(state);
   }
   const previousPositions = new Map();
 
   function render() {
     listEl.innerHTML = "";
+    const isTeamFinished = (team) =>
+      showFinishTime &&
+      team &&
+      team.completed >= (team.total || normalizedMissionTotal) &&
+      Number.isFinite(team.finishedAt);
     const sorted = [...state].sort((a, b) => {
-      if (b.completed !== a.completed) return b.completed - a.completed;
+      const aFinished = isTeamFinished(a);
+      const bFinished = isTeamFinished(b);
+      if (aFinished && bFinished) {
+        const timeA = Number.isFinite(a.finishedAt) ? a.finishedAt : Infinity;
+        const timeB = Number.isFinite(b.finishedAt) ? b.finishedAt : Infinity;
+        if (timeA !== timeB) return timeA - timeB;
+      } else if (aFinished !== bFinished) {
+        return aFinished ? -1 : 1;
+      }
+      if (b.completed !== a.completed) {
+        return b.completed - a.completed;
+      }
       if (a.order !== b.order) return a.order - b.order;
       return a.label.localeCompare(b.label, "ko");
     });
@@ -81,12 +115,21 @@ export function initRankModule({
       const myTeamTag = team.id === highlightTeam ? '<span class="my-team-tag">내 팀</span>' : "";
       const displayLabel = buildDisplayLabel(team, includeNickname);
       const safeLabel = escapeHtml(displayLabel);
+      const isFinished =
+        showFinishTime &&
+        Number.isFinite(team.finishedAt) &&
+        team.completed >= (team.total || normalizedMissionTotal);
+      const finishLabel = isFinished ? formatFinishTime(team.finishedAt) : "";
+      const finishTimeHtml = finishLabel ? `<span class="rank-finish-time">${finishLabel}</span>` : "";
       row.innerHTML = `
         <div class="rank-info">
           <span class="rank-order">${index + 1}</span>
           <span class="rank-name">${safeLabel} ${myTeamTag}</span>
         </div>
-        <span class="rank-progress">${team.completed}/${team.total}</span>
+        <div class="rank-stats">
+          <span class="rank-progress">${team.completed}/${team.total}</span>
+          ${finishTimeHtml}
+        </div>
       `;
       listEl.appendChild(row);
     });
@@ -99,7 +142,7 @@ export function initRankModule({
   }
 
   function setTeams(next = []) {
-    state = Array.isArray(next) ? next : [];
+    state = normalizeTeamList(next);
     render();
   }
 
@@ -109,7 +152,7 @@ export function initRankModule({
     onValue(teamsRef, (snapshot) => {
       const raw = snapshot.val() || {};
       const compiled = Object.entries(raw).map(([teamId, teamData]) =>
-        formatTeamEntry(teamId, teamData, missionTotal)
+        formatTeamEntry(teamId, teamData, normalizedMissionTotal)
       );
       setTeams(compiled);
     });
@@ -139,9 +182,10 @@ export function initRankModule({
           label: ensureTeamLabel(entry.name || entry.label || `Team ${index + 1}`, number),
           nickname: entry.nickname || "",
           completed: entry.progress ?? entry.completed ?? 0,
-          total: entry.total || missionTotal,
+          total: entry.total || normalizedMissionTotal,
           order,
           number,
+          finishedAt: entry.finishedAt ?? null,
         };
       });
       setTeams(formatted);
@@ -152,12 +196,12 @@ export function initRankModule({
 function formatTeamEntry(teamId, teamData = {}, missionTotal = DEFAULT_TOTAL_MISSIONS) {
   const profile = teamData.profile || {};
   const missions = teamData.missions || {};
-  const missionKeys = Object.keys(missions);
-  const total = missionKeys.length || missionTotal;
-  const completed = missionKeys.reduce(
-    (count, key) => count + (missions[key]?.stage === "done" ? 1 : 0),
-    0
-  );
+  const total = deriveTeamMissionTotal(teamData, missionTotal);
+  let completed = 0;
+  Object.keys(missions).forEach((key) => {
+    if (missions[key]?.stage === "done") completed += 1;
+  });
+  completed = Math.min(completed, total);
   const order =
     typeof profile.number === "number"
       ? profile.number
@@ -167,17 +211,23 @@ function formatTeamEntry(teamId, teamData = {}, missionTotal = DEFAULT_TOTAL_MIS
     teamId,
     Number.isFinite(order) && order !== Number.MAX_SAFE_INTEGER ? order : null
   );
+  const labelValue = ensureTeamLabel(official || teamId || "", order);
   const nickname = profile.nickname || "";
+  const finishedAt = normalizeFinishTimestamp(profile.finishedAt);
   return {
     id: teamId,
-    label: ensureTeamLabel(official, order),
+    label: labelValue,
     completed,
     total: total || missionTotal,
     order,
     profile,
     nickname,
     number: Number.isFinite(order) ? order : null,
-    displayLabel: buildDisplayLabel({ label: official, nickname, number: Number.isFinite(order) ? order : null }, true),
+    displayLabel: buildDisplayLabel(
+      { label: labelValue, nickname, number: Number.isFinite(order) ? order : null },
+      true
+    ),
+    finishedAt,
   };
 }
 
@@ -215,4 +265,54 @@ function ensureTeamLabel(label = "", fallbackNumber = null) {
     return compact;
   }
   return baseName || (Number.isFinite(fallbackNumber) ? `${fallbackNumber}팀` : "TEAM");
+}
+
+function clampMissionTotal(value) {
+  const num = Number.isFinite(value) ? value : DEFAULT_TOTAL_MISSIONS;
+  return Math.max(MIN_MISSIONS, Math.min(MAX_MISSIONS, num));
+}
+
+function deriveTeamMissionTotal(teamData = {}, fallback = DEFAULT_TOTAL_MISSIONS) {
+  const profile = teamData.profile || {};
+  const configMissions = teamData.config?.missions || {};
+  const missionsRaw = teamData.missions || {};
+  const profileTotal = Number(profile.missionTotal);
+  let maxMission = Number.isFinite(profileTotal) && profileTotal > 0 ? profileTotal : 0;
+  Object.keys(configMissions).forEach((key) => {
+    const n = Number(key);
+    if (Number.isFinite(n)) maxMission = Math.max(maxMission, n);
+  });
+  Object.keys(missionsRaw).forEach((key) => {
+    const n = Number(key);
+    if (Number.isFinite(n)) maxMission = Math.max(maxMission, n);
+  });
+  if (maxMission > 0) return clampMissionTotal(maxMission);
+  return clampMissionTotal(fallback);
+}
+
+function normalizeFinishTimestamp(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      return numeric;
+    }
+    const parsed = Date.parse(value);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
+function defaultFinishTimeFormatter(timestamp) {
+  if (!Number.isFinite(timestamp)) return "";
+  return new Date(timestamp).toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 }
