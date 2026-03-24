@@ -3,6 +3,7 @@
     "source": "functions"
   },
   "hosting": {
+    "site": "smart-mission-race-57839",
     "public": "public",
     "ignore": [
       "firebase.json",
@@ -10,6 +11,11 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      { "source": "/api/mobile-photo-action", "function": "mobilePhotoAction" },
+      { "source": "/api/hq-chat-send", "function": "hqChatSend" },
+      { "source": "/photo_upload", "destination": "/photo_upload.html" },
+      { "source": "/photo_approve", "destination": "/photo_approve.html" },
+      { "source": "/review", "destination": "/review.html" },
       { "source": "/dashboard", "destination": "/dashboard.html" },
       { "source": "/hq", "destination": "/hq.html" },
       { "source": "/admin", "destination": "/admin.html" },

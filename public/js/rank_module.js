@@ -10,6 +10,30 @@ const DEFAULT_TEAMS = [
 
 const DEFAULT_TOTAL_MISSIONS = 9;
 
+function getNumericMissionKeyCount(source = {}) {
+  const numericKeys = Object.keys(source || {})
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  return numericKeys.length ? Math.max(...numericKeys) : 0;
+}
+
+function getMostCommonValue(values = []) {
+  const counts = new Map();
+  values.forEach((value) => {
+    if (!Number.isFinite(value) || value <= 0) return;
+    counts.set(value, (counts.get(value) || 0) + 1);
+  });
+  let bestValue = 0;
+  let bestCount = -1;
+  counts.forEach((count, value) => {
+    if (count > bestCount || (count === bestCount && value < bestValue)) {
+      bestValue = value;
+      bestCount = count;
+    }
+  });
+  return bestValue;
+}
+
 export function initRankModule({
   listId = "rankList",
   simulateButtonId = "simulateBtn",
@@ -26,15 +50,47 @@ export function initRankModule({
 
   const button = simulateButtonId ? document.getElementById(simulateButtonId) : null;
   let state = Array.isArray(teams) ? [...teams] : [...DEFAULT_TEAMS];
+  let latestRawTeams = {};
+  let effectiveMissionTotal = Math.max(1, Number(missionTotal) || DEFAULT_TOTAL_MISSIONS);
   if (projectId) {
     state = [];
   }
   const previousPositions = new Map();
 
+  function resolveProjectMissionTotal(project = {}) {
+    const teamConfigTotals = Object.values(project?.teams || {})
+      .map((team) => getNumericMissionKeyCount(team?.config?.missions || {}))
+      .filter((value) => value > 0);
+    const consensusTeamConfigTotal = getMostCommonValue(teamConfigTotals);
+    const metaMissionTotal = Number(project?.meta?.missionTotal);
+    const routeMissionKeys = Array.isArray(project?.routing?.missionKeys)
+      ? project.routing.missionKeys.filter(Boolean).length
+      : 0;
+    const candidates = [
+      consensusTeamConfigTotal,
+      Number.isFinite(metaMissionTotal) && metaMissionTotal > 0 ? Math.floor(metaMissionTotal) : 0,
+      routeMissionKeys > 0 ? routeMissionKeys + 2 : 0,
+      effectiveMissionTotal,
+    ].filter((value) => Number.isFinite(value) && value > 0);
+    return candidates.length ? Math.min(...candidates) : effectiveMissionTotal;
+  }
+
+  function rebuildProjectState() {
+    state = Object.entries(latestRawTeams || {}).map(([teamId, teamData]) =>
+      formatTeamEntry(teamId, teamData, effectiveMissionTotal)
+    );
+    render();
+  }
+
   function render() {
     listEl.innerHTML = "";
     const sorted = [...state].sort((a, b) => {
       if (b.completed !== a.completed) return b.completed - a.completed;
+      const aFinishedAt = Number(a.finishedAt) || 0;
+      const bFinishedAt = Number(b.finishedAt) || 0;
+      if (aFinishedAt && bFinishedAt && aFinishedAt !== bFinishedAt) return aFinishedAt - bFinishedAt;
+      if (aFinishedAt && !bFinishedAt) return -1;
+      if (!aFinishedAt && bFinishedAt) return 1;
       if (a.order !== b.order) return a.order - b.order;
       return a.label.localeCompare(b.label, "ko");
     });
@@ -91,13 +147,16 @@ export function initRankModule({
 
   if (projectId) {
     render();
+    const projectRef = ref(db, `projects/${projectId}`);
     const teamsRef = ref(db, `projects/${projectId}/teams`);
+    onValue(projectRef, (snapshot) => {
+      const project = snapshot.val() || {};
+      effectiveMissionTotal = resolveProjectMissionTotal(project);
+      rebuildProjectState();
+    });
     onValue(teamsRef, (snapshot) => {
-      const raw = snapshot.val() || {};
-      const compiled = Object.entries(raw).map(([teamId, teamData]) =>
-        formatTeamEntry(teamId, teamData, missionTotal)
-      );
-      setTeams(compiled);
+      latestRawTeams = snapshot.val() || {};
+      rebuildProjectState();
     });
     if (button) {
       button.style.display = "none";
@@ -132,12 +191,19 @@ export function initRankModule({
 function formatTeamEntry(teamId, teamData = {}, missionTotal = DEFAULT_TOTAL_MISSIONS) {
   const profile = teamData.profile || {};
   const missions = teamData.missions || {};
-  const missionKeys = Object.keys(missions);
-  const total = missionKeys.length || missionTotal;
-  const completed = missionKeys.reduce(
-    (count, key) => count + (missions[key]?.stage === "done" ? 1 : 0),
+  const configMissionTotal = getNumericMissionKeyCount(teamData?.config?.missions || {});
+  const totalCandidates = [configMissionTotal, Number(missionTotal) || 0].filter((value) => Number.isFinite(value) && value > 0);
+  const total = totalCandidates.length ? Math.min(...totalCandidates) : DEFAULT_TOTAL_MISSIONS;
+  const completed = Object.entries(missions).reduce(
+    (count, [key, value]) => count + ((Number(key) >= 1 && Number(key) <= total && value?.stage === "done") ? 1 : 0),
     0
   );
+  const finishedAt = Object.entries(missions).reduce((latest, [key, value]) => {
+    const missionNumber = Number(key);
+    if (!(missionNumber >= 1 && missionNumber <= total) || value?.stage !== "done") return latest;
+    const completedAt = Number(value?.completedAt) || 0;
+    return completedAt > latest ? completedAt : latest;
+  }, 0);
   const order =
     typeof profile.number === "number"
       ? profile.number
@@ -149,7 +215,8 @@ function formatTeamEntry(teamId, teamData = {}, missionTotal = DEFAULT_TOTAL_MIS
     id: teamId,
     label,
     completed,
-    total: total || missionTotal,
+    total,
     order,
+    finishedAt,
   };
 }

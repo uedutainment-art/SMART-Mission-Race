@@ -4,10 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SMART Mission Race | 프로젝트 관리자</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./css/admin.css" />
   </head>
   <body>
     <div class="admin-shell">
+      <div class="admin-toast-host" id="adminToastHost"></div>
       <header>
         <h1>SMART Mission Race · 프로젝트 관리</h1>
       </header>
@@ -15,9 +17,15 @@
         <section class="panel">
           <div class="project-actions">
             <button class="btn btn-primary" id="newProjectBtn">프로젝트 생성</button>
+            <button class="btn btn-secondary" id="cloneProjectBtn">프로젝트 복제</button>
             <button class="btn btn-danger" id="deleteProjectBtn">프로젝트 삭제</button>
             <button class="btn btn-secondary" id="refreshProjectsBtn">새로고침</button>
           </div>
+          <div class="project-toolbar">
+            <input id="projectSearchInput" class="project-search-input" type="search" placeholder="프로젝트 검색" />
+          </div>
+          <div class="project-load-status" id="projectLoadStatus">프로젝트 목록을 불러오는 중입니다.</div>
+          <div class="project-load-meta" id="projectLoadMeta">연결 상태를 확인하는 중입니다.</div>
           <h2>프로젝트 목록</h2>
           <div class="editor-scroll" style="flex:1;">
             <table class="project-table" id="projectTable">
@@ -38,74 +46,601 @@
           <h2>프로젝트 정보</h2>
           <div class="editor-scroll" id="editorScroll">
             <form id="projectForm">
-              <div class="form-grid">
-                <div class="form-group">
-                  <label for="projectNameInput">프로젝트 이름</label>
-                  <input id="projectNameInput" placeholder="서울교육 런! 챌린지!" />
-                </div>
-                <div class="form-group">
-                  <label for="masterPasswordInput">마스터 패스워드</label>
-                  <input id="masterPasswordInput" placeholder="예) SEOUL1" />
-                </div>
-                <div class="form-group">
-                  <label for="startDateInput">시작일</label>
-                  <input id="startDateInput" type="date" />
-                </div>
-                <div class="form-group">
-                  <label for="endDateInput">종료일</label>
-                  <input id="endDateInput" type="date" />
-                </div>
-                <div class="form-group">
-                  <label for="organizerInput">참가 회사 / 기관</label>
-                  <input id="organizerInput" placeholder="서울특별시교육청" />
-                </div>
-                <div class="form-group">
-                  <label for="venueInput">교육 장소</label>
-                  <input id="venueInput" placeholder="서울특별시교육연수원" />
-                </div>
-                <div class="form-group">
-                  <label for="participantInput">참가 인원</label>
-                  <input id="participantInput" type="number" min="0" />
-                </div>
-                <div class="form-group">
-                  <label for="teamCountInput">참가 팀 수</label>
-                  <input id="teamCountInput" type="number" min="1" max="30" value="10" />
-                </div>
+              <div class="admin-tabs" id="adminTabs">
+                <button type="button" class="admin-tab is-active" data-tab-target="basic">기본정보</button>
+                <button type="button" class="admin-tab" data-tab-target="teams">팀</button>
+                <button type="button" class="admin-tab" data-tab-target="missions">미션</button>
+                <button type="button" class="admin-tab" data-tab-target="ops">운영</button>
               </div>
 
-              <div class="section-title">로고 설정 (입장/대시보드 공용)</div>
-              <div class="form-group">
-                <label>로고 이미지</label>
-                <div class="logo-preview">
-                  <img id="sharedLogoPreview" alt="프로젝트 로고" />
-                  <input type="file" id="sharedLogoInput" accept="image/*" />
-                </div>
-              </div>
-
-              <div class="section-title">팀 입력</div>
-              <table class="teams-table" id="teamTable">
-                <thead>
-                  <tr>
-                    <th>팀</th>
-                    <th>팀 이름</th>
-                    <th>비밀번호</th>
-                    <th>문제</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-
-              <div class="section-title">미션 설정</div>
-              <div class="form-group">
-                <label for="missionCountInput">미션 수</label>
-                <input id="missionCountInput" type="number" min="1" max="20" value="9" />
-              </div>
-
-              <div class="editor-actions">
+              <div class="admin-primary-actions">
                 <button type="button" class="btn btn-primary" id="saveProjectBtn">저장하기</button>
-                <button type="button" class="btn btn-secondary" id="resetResultsBtn">결과 삭제</button>
                 <button type="button" class="btn btn-secondary" id="openHQBtn">HQ 보기</button>
+                <button type="button" class="btn btn-danger admin-primary-reset-btn" id="resetResultsTopBtn">결과 리셋</button>
+                <div class="save-state" id="saveState">
+                  <span class="save-state__badge" id="projectSaveBadge">프로젝트 저장됨</span>
+                  <span class="save-state__badge" id="missionSaveBadge">미션 저장됨</span>
+                  <span class="save-state__badge" id="routeSyncBadge">배치표 적용됨</span>
+                  <span class="save-state__badge" id="routeInferenceBadge">배치표 확정됨</span>
+                  <span class="save-state__time" id="lastSavedAt">저장 이력 없음</span>
+                </div>
               </div>
+              <div class="current-project-bar" id="currentProjectBar">
+                <div class="current-project-bar__title" id="currentProjectTitle">새 프로젝트 작성 중</div>
+                <div class="current-project-bar__meta" id="currentProjectMeta">프로젝트를 선택하거나 새로 입력해 시작하세요.</div>
+              </div>
+              <div class="action-hint" id="actionHint">프로젝트를 선택하거나 기본정보를 입력한 뒤 저장하면 운영 기능을 사용할 수 있습니다.</div>
+
+              <section class="admin-tab-panel is-active" data-tab-panel="basic">
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="projectNameInput">프로젝트 이름</label>
+                    <input id="projectNameInput" placeholder="서울교육 런! 챌린지!" />
+                  </div>
+                  <div class="form-group">
+                    <label for="projectIdInput">프로젝트 ID</label>
+                    <input id="projectIdInput" placeholder="첫 저장 시 자동 생성" readonly />
+                    <small class="form-help">첫 저장 때 고정되며, 이후에는 같은 ID로 계속 저장됩니다.</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="masterPasswordInput">마스터 패스워드</label>
+                    <input id="masterPasswordInput" placeholder="예) SEOUL1" />
+                  </div>
+                  <div class="form-group">
+                    <label for="adminBypassCodeInput">특별 코드</label>
+                    <input id="adminBypassCodeInput" placeholder="최종 점검용 테스트 코드" />
+                    <small class="form-help">코드/미션 입력창에서 이 값을 넣으면 현재 단계를 빠르게 통과시킬 수 있습니다.</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="photoApprovalPasswordInput">모바일 사진 승인 비밀번호</label>
+                    <input id="photoApprovalPasswordInput" placeholder="휴대폰 승인 전용 비밀번호" />
+                    <small class="form-help">`모바일 사진 승인` 화면에서 먼저 입력해야 승인/재도전이 가능합니다.</small>
+                  </div>
+                  <div class="form-group">
+                    <label for="projectStatusInput">프로젝트 상태</label>
+                    <select id="projectStatusInput">
+                      <option value="planned">준비중</option>
+                      <option value="running">진행중</option>
+                      <option value="finished">종료</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="routeModeInput">운영 방식</label>
+                    <select id="routeModeInput">
+                      <option value="academy">연수원형</option>
+                      <option value="outdoor">야외형</option>
+                    </select>
+                  </div>
+                  <div class="form-group form-group--toggle">
+                    <label for="rainModeInput">우천시 모드</label>
+                    <label class="toggle-field">
+                      <input id="rainModeInput" type="checkbox" />
+                      <span>체크하면 우천시 이미지로 즉시 전환됩니다.</span>
+                    </label>
+                  </div>
+                  <div class="form-group form-group--toggle">
+                    <label for="hideTeamChatInput">팀 채팅 숨김</label>
+                    <label class="toggle-field">
+                      <input id="hideTeamChatInput" type="checkbox" />
+                      <span>이번 운영에서는 팀 화면에 채팅을 숨깁니다.</span>
+                    </label>
+                  </div>
+                  <div class="form-group form-group--toggle">
+                    <label for="hideTeamPhotoInput">팀 사진 기능 숨김</label>
+                    <label class="toggle-field">
+                      <input id="hideTeamPhotoInput" type="checkbox" />
+                      <span>이번 운영에서는 팀 화면에 사진 업로드 버튼과 QR을 숨깁니다.</span>
+                    </label>
+                  </div>
+                  <div class="form-group">
+                    <label for="startDateInput">교육일</label>
+                    <input id="startDateInput" type="date" />
+                  </div>
+                  <div class="form-group">
+                    <label for="endDateInput">종료 일시</label>
+                    <input id="endDateInput" type="datetime-local" />
+                  </div>
+                  <div class="form-group">
+                    <label for="organizerInput">참가 회사 / 기관</label>
+                    <input id="organizerInput" placeholder="서울특별시교육청" />
+                  </div>
+                  <div class="form-group">
+                    <label for="venueInput">교육 장소</label>
+                    <input id="venueInput" placeholder="서울특별시교육연수원" />
+                  </div>
+                  <div class="form-group">
+                    <label for="participantInput">참가 인원</label>
+                    <input id="participantInput" type="number" min="0" />
+                  </div>
+                  <div class="form-group">
+                    <label for="teamCountInput">참가 팀 수</label>
+                    <input id="teamCountInput" type="number" min="1" max="30" value="10" />
+                  </div>
+                </div>
+                <div class="admin-notice" id="projectValidationNotice">
+                  프로젝트 ID는 첫 저장 때 고정됩니다. 이후에는 팀 수를 줄이기 전에 운영 데이터 삭제 여부만 확인하면 됩니다.
+                </div>
+                <div class="quick-actions" id="quickActions">
+                  <button type="button" class="btn btn-secondary" id="gotoTeamsBtn">팀 설정으로 이동</button>
+                  <button type="button" class="btn btn-secondary" id="gotoMissionsBtn">미션 설정으로 이동</button>
+                  <button type="button" class="btn btn-secondary" id="gotoOpsBtn">운영 탭으로 이동</button>
+                </div>
+                <div class="setup-roadmap" id="setupRoadmap"></div>
+                <div class="admin-checklist" id="projectChecklist"></div>
+                <div class="admin-summary" id="projectSummary">
+                  <div class="admin-summary__empty">프로젝트를 선택하면 운영 요약이 표시됩니다.</div>
+                </div>
+
+                <div class="section-title">로고 설정 (입장/대시보드 공용)</div>
+                <div class="form-group">
+                  <label>로고 이미지</label>
+                  <div class="asset-dropzone" id="sharedLogoDropzone">
+                    <img id="sharedLogoPreview" alt="프로젝트 로고" />
+                    <div class="asset-dropzone__copy">
+                      <strong>로고 파일 업로드</strong>
+                      <span>드래그해서 놓거나 클릭해서 선택</span>
+                    </div>
+                    <input type="file" id="sharedLogoInput" accept="image/*" hidden />
+                  </div>
+                </div>
+
+                <div class="section-title">입장 화면 설정</div>
+                <div class="form-grid">
+                  <div class="form-group">
+                    <label for="loginTitleInput">입장 화면 제목</label>
+                    <input id="loginTitleInput" placeholder="예) 2026 COMPANY OFFSITE" />
+                  </div>
+                  <div class="form-group">
+                    <label for="loginSubtitleInput">보조 문구</label>
+                    <input id="loginSubtitleInput" placeholder="예) 팀 비밀번호를 입력해 입장하세요." />
+                  </div>
+                  <div class="form-group">
+                    <label for="loginUnlockLabelInput">UNLOCK 버튼 문구</label>
+                    <input id="loginUnlockLabelInput" placeholder="예) 프로젝트 확인" />
+                  </div>
+                  <div class="form-group">
+                    <label for="loginTeamButtonLabelInput">TEAM LOGIN 버튼 문구</label>
+                    <input id="loginTeamButtonLabelInput" placeholder="예) 팀 입장하기" />
+                  </div>
+                  <div class="form-group">
+                    <label for="loginThemeInput">배경 톤</label>
+                    <select id="loginThemeInput">
+                      <option value="midnight">기본 블루</option>
+                      <option value="sunset">선셋</option>
+                      <option value="forest">포레스트</option>
+                      <option value="slate">슬레이트</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>배경 이미지</label>
+                    <div class="asset-dropzone asset-dropzone--wide" id="loginBackgroundDropzone">
+                      <img id="loginBackgroundPreview" alt="입장 배경 이미지" class="asset-dropzone__background-preview hidden" />
+                      <div class="asset-dropzone__copy">
+                        <strong>배경 이미지 업로드</strong>
+                        <span>드래그해서 놓거나 클릭해서 선택</span>
+                      </div>
+                      <input type="file" id="loginBackgroundInput" accept="image/*" hidden />
+                    </div>
+                  </div>
+                  <div class="form-group form-group--full">
+                    <label for="loginNoticeInput">입장 안내 문구</label>
+                    <textarea id="loginNoticeInput" rows="3" placeholder="예) 안내데스크에서 받은 팀 비밀번호를 입력하고 입장하세요."></textarea>
+                  </div>
+                  <div class="form-group form-group--full">
+                    <label for="finishNoticeInput">종료 안내 문구</label>
+                    <textarea id="finishNoticeInput" rows="3" placeholder="예) 모든 미션이 끝났습니다. 팀원 전원이 본부로 이동해 주세요."></textarea>
+                  </div>
+                </div>
+                <div class="login-preview" id="loginPreview">
+                  <div class="login-preview__head">
+                    <strong>입장 화면 미리보기</strong>
+                    <div class="login-preview__head-actions">
+                      <span>저장 전 확인용</span>
+                      <button type="button" class="btn btn-secondary btn--compact" id="openLoginPreviewBtn">프로젝트 입장 열기</button>
+                      <button type="button" class="btn btn-secondary btn--compact" id="openTeamLoginPreviewBtn">팀 로그인 열기</button>
+                    </div>
+                  </div>
+                  <div class="login-preview__grid">
+                    <div class="login-preview__card" id="loginPreviewCard">
+                      <div class="login-preview__label">프로젝트 입장 화면</div>
+                      <img src="" alt="프로젝트 로고 미리보기" class="login-preview__logo hidden" id="loginPreviewLogo" />
+                      <div class="login-preview__title" id="loginPreviewTitle">프로젝트 정보를 입력하세요.</div>
+                      <div class="login-preview__subtitle hidden" id="loginPreviewSubtitle"></div>
+                      <div class="login-preview__dates hidden" id="loginPreviewDates"></div>
+                      <div class="login-preview__notice hidden" id="loginPreviewNotice"></div>
+                      <div class="login-preview__inputs">
+                        <div class="login-preview__input-group">
+                          <label>패스워드</label>
+                          <div class="login-preview__input">패스워드 입력</div>
+                        </div>
+                      </div>
+                      <div class="login-preview__buttons">
+                        <button type="button" class="login-preview__button" id="loginPreviewUnlock">확인</button>
+                      </div>
+                    </div>
+                    <div class="login-preview__card" id="teamLoginPreviewCard">
+                      <div class="login-preview__label">팀 로그인 화면</div>
+                      <img src="" alt="프로젝트 로고 미리보기" class="login-preview__logo hidden" id="teamLoginPreviewLogo" />
+                      <div class="login-preview__title" id="teamLoginPreviewTitle">프로젝트 정보를 입력하세요.</div>
+                      <div class="login-preview__subtitle hidden" id="teamLoginPreviewSubtitle"></div>
+                      <div class="login-preview__notice hidden" id="teamLoginPreviewNotice"></div>
+                      <div class="login-preview__inputs">
+                        <div class="login-preview__input-group">
+                          <label>팀 이름</label>
+                          <div class="login-preview__input">팀 이름 입력</div>
+                        </div>
+                        <div class="login-preview__input-group">
+                          <label>팀 비밀번호</label>
+                          <div class="login-preview__input">팀 비밀번호</div>
+                        </div>
+                      </div>
+                      <div class="login-preview__buttons">
+                        <button type="button" class="login-preview__button login-preview__button--secondary" id="loginPreviewTeam">팀 입장</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="admin-tab-panel" data-tab-panel="teams">
+                <div class="section-title">팀 / 배치표 통합</div>
+                <div class="admin-notice">
+                  팀 비밀번호 입력과 팀 배치표를 하나의 표에서 함께 관리합니다. 팀별 `개별 수정`은 예외 상황에서만 사용하세요.
+                </div>
+                <table class="teams-table" id="teamTable" hidden>
+                  <thead>
+                    <tr>
+                      <th>팀</th>
+                      <th>비밀번호</th>
+                      <th>개별 수정</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+
+                <div class="section-title">공통 코드 라이브러리</div>
+                <div class="route-builder-meta" id="routeBuilderMeta">
+                  각 코드 이미지는 전체 팀 공통으로 적용됩니다. 코드 정답은 동일하게 유지됩니다.
+                </div>
+                <div class="route-table-wrap">
+                  <table class="route-table" id="routeCodeTable">
+                    <thead>
+                      <tr>
+                        <th>코드</th>
+                        <th>표시명</th>
+                        <th>정답</th>
+                        <th>방식</th>
+                        <th>대기(분)</th>
+                        <th>사진 슬롯</th>
+                        <th>이미지</th>
+                      </tr>
+                    </thead>
+                    <tbody id="routeCodeTableBody"></tbody>
+                  </table>
+                </div>
+
+                <div class="section-title">공통 미션 라이브러리</div>
+                <div class="form-grid route-builder-controls">
+                  <div class="form-group">
+                    <label for="routeMissionKeysInput">중간 미션 키</label>
+                    <input id="routeMissionKeysInput" placeholder="예) A,B,C,D" />
+                    <small class="form-help">중간 키만 넣습니다. 시작과 마지막은 자동으로 `S`, `L`이 붙습니다.</small>
+                  </div>
+                </div>
+                <div class="editor-actions route-template-actions route-template-actions--photo">
+                  <select id="photoTemplateSelect" class="route-column-fill-input route-column-fill-input--wide">
+                    <option value="">사진 미션 템플릿 선택</option>
+                  </select>
+                  <button type="button" class="btn btn-secondary" id="applyPhotoTemplateToAllBtn">전체 적용</button>
+                  <button type="button" class="btn btn-secondary" id="applyPhotoTemplateToEmptyBtn">빈 칸만 적용</button>
+                </div>
+                <div class="route-table-wrap">
+                  <table class="route-table" id="routeMissionLibraryTable">
+                    <thead>
+                      <tr>
+                        <th>키</th>
+                        <th>표시명</th>
+                        <th>정답 템플릿</th>
+                        <th>방식</th>
+                        <th>대기(분)</th>
+                        <th>사진 슬롯</th>
+                        <th>이미지</th>
+                        <th>예시</th>
+                      </tr>
+                    </thead>
+                    <tbody id="routeMissionLibraryBody"></tbody>
+                  </table>
+                </div>
+
+                <div class="section-title">통합 팀배치표</div>
+                <div class="route-builder-meta" id="routeMatrixMeta">
+                  세로축은 팀, 가로축은 단계입니다. 각 중간 칸의 위에는 코드키, 아래에는 미션키를 넣습니다. 예: `2-1 / A-1`
+                </div>
+                <div class="admin-notice">
+                  입력 기준: 기본 코드는 `1,2,3...`, 예외 코드는 `1-1,2-1...` / 기본 미션은 `S,A,B...L`, 예외 미션은 `A-1,D-1...`
+                </div>
+                <div class="editor-actions route-template-actions">
+                  <input id="routeTemplateNameInput" class="route-column-fill-input route-column-fill-input--wide" placeholder="예: 4미션 8조 기본형" />
+                  <button type="button" class="btn btn-secondary" id="saveRouteTemplateBtn">패턴 저장</button>
+                  <select id="routeTemplateSelect" class="route-column-fill-input route-column-fill-input--wide">
+                    <option value="">저장된 패턴 선택</option>
+                  </select>
+                  <button type="button" class="btn btn-secondary" id="loadRouteTemplateBtn">패턴 불러오기</button>
+                  <button type="button" class="btn btn-secondary" id="deleteRouteTemplateBtn">패턴 삭제</button>
+                  <button type="button" class="btn btn-secondary" id="applyAcademyExampleBtn">연수원 예시</button>
+                  <button type="button" class="btn btn-secondary" id="applyOutdoorExampleBtn">야외 8팀 예시</button>
+                </div>
+                <div class="editor-actions route-builder-actions route-builder-actions--primary">
+                  <button type="button" class="btn btn-secondary btn--compact" id="autoFillRouteMatrixBtn" title="자동 순열 채우기">자동 채우기</button>
+                  <button type="button" class="btn btn-secondary btn--compact" id="importRouteMatrixBtn" title="배치표 CSV 가져오기">CSV 가져오기</button>
+                  <button type="button" class="btn btn-secondary btn--compact" id="exportRouteAssignmentReportBtn" title="팀배치표 리포트 CSV">리포트 CSV</button>
+                  <button type="button" class="btn btn-secondary btn--compact" id="exportRouteIssuesReportBtn" title="문제팀 CSV">문제팀 CSV</button>
+                  <button type="button" class="btn btn-secondary btn--compact" id="exportRouteStaffSheetBtn" title="진행팀용 최종 팀표 CSV">진행표 CSV</button>
+                  <button type="button" class="btn btn-secondary btn--compact" id="copyRouteStaffSheetBtn" title="진행팀용 최종 팀표 복사">진행표 복사</button>
+                  <button type="button" class="btn btn-secondary btn--compact" id="printRouteStaffSheetBtn" title="진행팀 출력표 인쇄">진행표 인쇄</button>
+                  <button type="button" class="btn btn-secondary btn--compact" id="saveApplyRouteMatrixBtn" title="저장 후 배치표 적용">저장+적용</button>
+                  <button type="button" class="btn btn-secondary btn--compact" id="applyRouteMatrixBtn" title="배치표로 팀별 미션 생성">미션 생성</button>
+                  <input type="file" id="importRouteMatrixInput" accept=".csv,text/csv" hidden />
+                </div>
+                <details class="route-actions-advanced">
+                  <summary>고급 배치 작업</summary>
+                  <div class="editor-actions route-builder-actions route-builder-actions--advanced">
+                    <button type="button" class="btn btn-secondary" id="autoFillRouteMatrixFromHereBtn">여기부터 순열 채우기</button>
+                    <button type="button" class="btn btn-secondary" id="duplicateRouteToNextTeamBtn">아래 팀으로 복제</button>
+                    <button type="button" class="btn btn-secondary" id="duplicateRouteToRemainingTeamsBtn">아래 전체 복제</button>
+                    <input id="routeRangeApplyInput" class="route-column-fill-input route-column-fill-input--wide" placeholder="예: 3-7" />
+                    <button type="button" class="btn btn-secondary" id="duplicateRouteToRangeBtn">범위 복제</button>
+                    <button type="button" class="btn btn-secondary" id="autoFillRouteRangeBtn">범위 순열 채우기</button>
+                    <button type="button" class="btn btn-secondary" id="clearRouteColumnBtn">선택 타임 비우기</button>
+                    <input id="routeColumnFillInput" class="route-column-fill-input" list="routeKeyOptions" placeholder="예: A" maxlength="8" />
+                    <button type="button" class="btn btn-secondary" id="fillRouteColumnBtn">선택 타임 일괄 입력</button>
+                    <button type="button" class="btn btn-secondary" id="exportRouteMatrixBtn">배치표 CSV</button>
+                  </div>
+                </details>
+                <div class="route-table-wrap">
+                  <table class="route-table route-table--matrix" id="routeMatrixTable">
+                    <thead id="routeMatrixHead"></thead>
+                    <tbody id="routeMatrixBody"></tbody>
+                  </table>
+                  <datalist id="routeKeyOptions"></datalist>
+                  <datalist id="routeCodeKeyOptions"></datalist>
+                </div>
+                <div class="readiness-panel route-preview-panel hidden" id="routePreviewPanel">
+                  <div class="readiness-panel__head">
+                    <strong>선택 셀 미리보기</strong>
+                    <span class="readiness-panel__badge" id="routePreviewBadge" data-state="warn">대기</span>
+                  </div>
+                  <div class="route-preview" id="routePreview">
+                    <div class="route-preview__empty">팀 배치표 셀을 선택하면 연결된 공통 미션과 실제 정답이 표시됩니다.</div>
+                  </div>
+                </div>
+                <div class="readiness-panel route-summary-panel hidden" id="routeSummaryPanel">
+                  <div class="readiness-panel__head">
+                    <strong>팀별 전체 경로</strong>
+                    <span class="readiness-panel__badge" id="routeSummaryBadge" data-state="warn">대기</span>
+                  </div>
+                  <div class="route-summary-list" id="routeSummaryList">
+                    <div class="route-preview__empty">배치표를 입력하면 팀별 전체 경로가 요약됩니다.</div>
+                  </div>
+                </div>
+                <div class="readiness-panel route-assignment-panel" id="routeAssignmentPanel" hidden>
+                  <div class="readiness-panel__head">
+                    <strong>팀배치표 리포트 (팀 기준)</strong>
+                    <span class="readiness-panel__badge" id="routeAssignmentBadge" data-state="warn">대기</span>
+                  </div>
+                  <div class="route-builder-meta" id="routeAssignmentMeta">
+                    세로는 팀, 가로는 팀 비밀번호부터 S/미션키/L 순서로 표시됩니다.
+                  </div>
+                  <div class="route-table-wrap route-assignment-table-wrap">
+                    <table class="route-table route-table--matrix" id="routeAssignmentTable">
+                      <thead id="routeAssignmentHead"></thead>
+                      <tbody id="routeAssignmentBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="readiness-panel route-staff-sheet-panel" id="routeStaffSheetPanel">
+                  <div class="readiness-panel__head">
+                    <strong>진행팀 최종 팀표</strong>
+                    <span class="readiness-panel__badge" id="routeStaffSheetBadge" data-state="warn">대기</span>
+                  </div>
+                  <div class="route-builder-meta" id="routeStaffSheetMeta">
+                    진행팀이 바로 볼 수 있는 최종 순서표입니다. 키와 표시명을 함께 보여줍니다.
+                  </div>
+                  <div class="route-table-wrap route-staff-sheet-wrap">
+                    <table class="route-table route-table--matrix route-staff-sheet-table" id="routeStaffSheetTable">
+                      <thead id="routeStaffSheetHead"></thead>
+                      <tbody id="routeStaffSheetBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </section>
+
+              <section class="admin-tab-panel" data-tab-panel="missions">
+                <div class="section-title">미션 설정</div>
+                <div class="form-group mission-count-group">
+                  <label for="missionCountInput">미션 수</label>
+                  <input id="missionCountInput" type="number" min="1" max="20" value="9" />
+                  <small class="form-help">팀 탭의 `입력` 버튼으로 팀별 미션 모달을 열 수 있습니다.</small>
+                </div>
+                <div class="mission-quickbar">
+                  <button type="button" class="btn btn-secondary" id="openFirstIncompleteMissionBtn">가장 미완료 팀 열기</button>
+                  <button type="button" class="btn btn-secondary" id="openNextMissionTeamBtn">다음 팀 열기</button>
+                </div>
+                <div class="mission-overview-filters" id="missionOverviewFilters">
+                  <button type="button" class="mission-overview-filter is-active" data-mission-filter="all">전체</button>
+                  <button type="button" class="mission-overview-filter" data-mission-filter="issues">누락만</button>
+                  <button type="button" class="mission-overview-filter" data-mission-filter="values">값 누락</button>
+                  <button type="button" class="mission-overview-filter" data-mission-filter="slots">사진 슬롯</button>
+                  <button type="button" class="mission-overview-filter" data-mission-filter="codeImages">코드 이미지</button>
+                  <button type="button" class="mission-overview-filter" data-mission-filter="missionImages">미션 이미지</button>
+                </div>
+                <div class="mission-overview-meta" id="missionOverviewMeta">전체 팀을 표시합니다.</div>
+                <div class="mission-overview" id="missionOverview"></div>
+              </section>
+
+              <section class="admin-tab-panel" data-tab-panel="ops">
+                <div class="section-title">운영 도구</div>
+                <div class="readiness-panel" id="opsConsolePanel">
+                  <div class="readiness-panel__head">
+                    <strong>운영 콘솔 홈</strong>
+                    <span class="readiness-panel__badge" data-state="ready">허브</span>
+                  </div>
+                  <div class="ops-console-grid" id="opsConsoleGrid">
+                    <button type="button" class="ops-console-card" id="opsConsoleOpenTeamLoginBtn">
+                      <strong>팀 입장</strong>
+                      <span>팀 로그인 화면 열기</span>
+                    </button>
+                    <button type="button" class="ops-console-card" id="opsConsoleOpenHQBtn">
+                      <strong>HQ 운영</strong>
+                      <span>대기/채팅/다운로드 허브</span>
+                    </button>
+                    <button type="button" class="ops-console-card" id="opsConsoleOpenReviewBtn">
+                      <strong>사진 검수</strong>
+                      <span>데스크탑 검수 큐 열기</span>
+                    </button>
+                    <button type="button" class="ops-console-card" id="opsConsoleOpenApproveBtn">
+                      <strong>모바일 승인</strong>
+                      <span>현장 휴대폰 승인 화면</span>
+                    </button>
+                    <button type="button" class="ops-console-card" id="opsConsoleExportBundleBtn">
+                      <strong>종료 패키지</strong>
+                      <span>결과/로그/사진 정리 파일 생성</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="readiness-panel" id="startGatePanel">
+                  <div class="readiness-panel__head">
+                    <strong>운영 시작 게이트</strong>
+                    <span class="readiness-panel__badge" id="startGateBadge" data-state="warn">확인 필요</span>
+                  </div>
+                  <div class="readiness-panel__list" id="startGateList"></div>
+                  <div class="editor-actions">
+                    <button type="button" class="btn btn-secondary" id="runStartGateBtn">지금 점검</button>
+                  </div>
+                </div>
+                <div class="readiness-panel" id="launchReadinessPanel">
+                  <div class="readiness-panel__head">
+                    <strong>운영 준비도</strong>
+                    <span class="readiness-panel__badge" id="launchReadinessBadge">확인 필요</span>
+                  </div>
+                  <div class="readiness-panel__list" id="launchReadinessList"></div>
+                </div>
+                <div class="readiness-panel">
+                  <div class="readiness-panel__head">
+                    <strong>빠른 리허설</strong>
+                    <span class="readiness-panel__badge" id="rehearsalBadge">대기</span>
+                  </div>
+                  <div class="readiness-panel__list" id="rehearsalInfo"></div>
+                  <div class="editor-actions editor-actions--stacked">
+                    <button type="button" class="btn btn-secondary" id="openTeamLoginBtn">팀 로그인 열기</button>
+                    <button type="button" class="btn btn-secondary" id="copyTeamLoginLinkBtn">팀 로그인 링크 복사</button>
+                    <button type="button" class="btn btn-secondary" id="showTeamLoginQrBtn">팀 로그인 QR 보기</button>
+                    <button type="button" class="btn btn-secondary" id="copyTeamLoginQrBtn">팀 로그인 QR 복사</button>
+                    <button type="button" class="btn btn-secondary" id="openReviewBtn">사진 검수 열기</button>
+                    <button type="button" class="btn btn-secondary" id="openPhotoApproveBtn">모바일 사진 승인 열기</button>
+                    <button type="button" class="btn btn-secondary" id="copyPhotoApproveLinkBtn">모바일 승인 링크 복사</button>
+                    <button type="button" class="btn btn-secondary" id="showPhotoApproveQrBtn">모바일 승인 QR 보기</button>
+                    <button type="button" class="btn btn-secondary" id="normalizeMissionSchemaBtn">미션 구조 최신화</button>
+                    <button type="button" class="btn btn-secondary" id="copyPhotoUploadLinkBtn">사진 업로드 예시 링크 복사</button>
+                  </div>
+                  <div class="asset-dropzone asset-dropzone--wide" id="teamLoginQrPanel" hidden>
+                    <img id="teamLoginQrImage" alt="팀 로그인 QR" class="asset-dropzone__background-preview hidden" />
+                    <div class="asset-dropzone__copy">
+                      <strong>팀 로그인 QR</strong>
+                      <span id="teamLoginQrMeta">프로젝트 저장 후 QR을 생성할 수 있습니다.</span>
+                    </div>
+                  </div>
+                  <div class="asset-dropzone asset-dropzone--wide" id="photoApproveQrPanel" hidden>
+                    <img id="photoApproveQrImage" alt="모바일 승인 QR" class="asset-dropzone__background-preview hidden" />
+                    <div class="asset-dropzone__copy">
+                      <strong>모바일 승인 QR</strong>
+                      <span id="photoApproveQrMeta">프로젝트 저장 후 QR을 생성할 수 있습니다.</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="readiness-panel">
+                  <div class="readiness-panel__head">
+                    <strong>시작 직전 5분 체크</strong>
+                    <span class="readiness-panel__badge" data-state="warn">순서 확인</span>
+                  </div>
+                  <div class="readiness-panel__list">
+                    <div class="readiness-item readiness-item--warn">1. 프로젝트 상태와 시작/종료 시간이 실제 행사 시간과 맞는지 확인</div>
+                    <div class="readiness-item readiness-item--warn">2. 팀 로그인 새 창 열기 후 테스트 비밀번호 1개 확인</div>
+                    <div class="readiness-item readiness-item--warn">3. 사진 미션이 있으면 업로드 예시 링크로 사진 제출 1회 확인</div>
+                    <div class="readiness-item readiness-item--warn">4. HQ 열기 후 사진 대기, 채팅, 팀 카드 표시 상태 확인</div>
+                    <div class="readiness-item readiness-item--warn">5. 필요하면 결과 CSV와 운영 로그 CSV를 한 번 시험 저장 후 본 운영 시작</div>
+                  </div>
+                </div>
+                <div class="readiness-panel">
+                  <div class="readiness-panel__head">
+                    <strong>공지 발송</strong>
+                    <span class="readiness-panel__badge" data-state="ready">실시간</span>
+                  </div>
+                  <div class="announcement-form">
+                    <select id="announcementTargetSelect">
+                      <option value="__broadcast">전체 팀</option>
+                    </select>
+                    <textarea id="announcementMessageInput" rows="3" placeholder="공지 메시지를 입력하세요. 예) 3번 미션은 우천으로 실내로 변경되었습니다."></textarea>
+                    <div class="editor-actions">
+                      <button type="button" class="btn btn-secondary" id="sendAnnouncementBtn">공지 보내기</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="readiness-panel">
+                  <div class="readiness-panel__head">
+                    <strong>실시간 운영 타임라인</strong>
+                    <span class="readiness-panel__badge" id="opsTimelineBadge" data-state="warn">대기</span>
+                  </div>
+                  <div class="ops-timeline-filters">
+                    <button type="button" class="ops-timeline-filter is-active" data-ops-filter="all">전체</button>
+                    <button type="button" class="ops-timeline-filter" data-ops-filter="announcement">공지</button>
+                    <button type="button" class="ops-timeline-filter" data-ops-filter="approve">승인</button>
+                    <button type="button" class="ops-timeline-filter" data-ops-filter="retry">재도전</button>
+                    <button type="button" class="ops-timeline-filter" data-ops-filter="bypass">특별 코드</button>
+                  </div>
+                  <div class="ops-timeline" id="opsTimeline"></div>
+                </div>
+                <div class="ops-grid">
+                  <div class="ops-card">
+                    <div>
+                      <strong>결과 CSV</strong>
+                      <p>현재 팀별 진행률과 완료 상태를 내려받습니다.</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="exportResultsBtn">내보내기</button>
+                  </div>
+                  <div class="ops-card">
+                    <div>
+                      <strong>운영 로그 CSV</strong>
+                      <p>관리자와 HQ 동작 기록을 내려받습니다.</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="exportOpsLogBtn">내보내기</button>
+                  </div>
+                  <div class="ops-card">
+                    <div>
+                      <strong>운영 종료 패키지</strong>
+                      <p>결과 CSV, 운영 로그 CSV, HQ 사진 정리 파일로 바로 이동합니다.</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="exportOpsBundleBtn">패키지</button>
+                  </div>
+                  <div class="ops-card ops-card--warning">
+                    <div>
+                      <strong>프로젝트 종료</strong>
+                      <p>참가팀의 새 로그인과 진행을 종료 상태로 전환합니다.</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="finishProjectBtn">종료</button>
+                  </div>
+                  <div class="ops-card ops-card--danger">
+                    <div>
+                      <strong>결과 삭제</strong>
+                      <p>팀 미션 진행, 업로드, 채팅 기록을 초기화합니다.</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="resetResultsBtn">초기화</button>
+                  </div>
+                </div>
+                <div class="admin-notice">
+                  종료와 결과 삭제는 참가팀 진행 상태에 직접 영향을 줍니다. 운영 중에는 신중하게 실행하세요.
+                </div>
+              </section>
             </form>
           </div>
         </section>
@@ -115,19 +650,26 @@
     <div class="modal-overlay" id="missionModal" hidden>
       <div class="modal-content">
         <div class="modal-header">
-          <div>
+          <div class="mission-modal-headcopy">
             <h3 id="missionModalTitle">문제 입력</h3>
-            <p>코드/미션 정답과 이미지를 설정하세요.</p>
+            <p id="missionModalSubtitle">정답 입력, QR 입력, HQ 승인, 사진+HQ 승인 방식과 자동 이동 시간을 설정하세요.</p>
+            <div class="mission-modal-jumpbar" id="missionModalJumpbar"></div>
           </div>
-          <button class="modal-close" id="missionModalClose">×</button>
+          <div class="mission-modal-nav">
+            <button class="btn btn-secondary btn--compact" id="missionModalDensityToggle" type="button">썸네일 보기</button>
+            <button class="btn btn-secondary btn--compact" id="missionModalNextIssue" type="button">다음 누락</button>
+            <button class="btn btn-secondary" id="missionModalPrevTeam" type="button">이전 팀</button>
+            <button class="btn btn-secondary" id="missionModalNextTeam" type="button">다음 팀</button>
+          </div>
+          <button class="modal-close" id="missionModalClose" type="button">×</button>
         </div>
         <div class="modal-body">
           <table class="mission-table">
             <thead>
               <tr>
                 <th>미션</th>
-                <th>코드 정답</th>
-                <th>미션 정답</th>
+                <th>코드 단계</th>
+                <th>미션 단계</th>
                 <th>코드 이미지</th>
                 <th>미션 이미지</th>
               </tr>
@@ -136,12 +678,57 @@
           </table>
         </div>
         <div class="modal-actions">
-          <button class="btn btn-primary" id="missionModalSave">저장하기</button>
-          <button class="btn btn-secondary" id="missionModalCancel">닫기</button>
+          <button class="btn btn-secondary" id="missionModalSaveNext" type="button">저장 후 다음 팀</button>
+          <button class="btn btn-primary" id="missionModalSave" type="button">저장하기</button>
+          <button class="btn btn-secondary" id="missionModalCancel" type="button">닫기</button>
         </div>
       </div>
     </div>
 
-    <script type="module" src="./js/admin.js"></script>
+    <div class="modal-overlay" id="cloneModal" hidden>
+      <div class="modal-content modal-content--compact">
+        <div class="modal-header">
+          <div>
+            <h3>프로젝트 복제</h3>
+            <p>새 프로젝트 이름과 마스터 비밀번호를 입력하세요.</p>
+          </div>
+          <button class="modal-close" id="cloneModalClose">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="cloneProjectNameInput">새 프로젝트 이름</label>
+              <input id="cloneProjectNameInput" placeholder="예) 2026 COMPANY OFFSITE 복제본" />
+            </div>
+            <div class="form-group">
+              <label for="cloneMasterPasswordInput">새 마스터 비밀번호</label>
+              <input id="cloneMasterPasswordInput" placeholder="예) OFFSITE2026" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-primary" id="cloneModalSubmit" type="button">복제하기</button>
+          <button class="btn btn-secondary" id="cloneModalCancel" type="button">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-overlay" id="confirmModal" hidden>
+      <div class="modal-content modal-content--compact">
+        <div class="modal-header">
+          <div>
+            <h3 id="confirmModalTitle">확인</h3>
+            <p id="confirmModalMessage">계속 진행할까요?</p>
+          </div>
+          <button class="modal-close" id="confirmModalClose">×</button>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-danger" id="confirmModalSubmit" type="button">진행</button>
+          <button class="btn btn-secondary" id="confirmModalCancel" type="button">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./js/admin.js?v=20260317-cache-1"></script>
   </body>
 </html>

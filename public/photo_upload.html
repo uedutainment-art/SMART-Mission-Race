@@ -18,6 +18,9 @@
       text-align: center;
       gap: 18px;
     }
+    .hidden {
+      display: none !important;
+    }
     h2 {
       margin: 0;
       color: #4cc9f0;
@@ -27,25 +30,175 @@
       font-size: 16px;
       color: #d1d5db;
     }
-    .photo-layout {
-      display: flex;
-      gap: 20px;
-      width: 100%;
-      max-width: 760px;
-      align-items: flex-start;
+    .upload-status {
+      margin: 8px auto 0;
+      padding: 14px 18px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(76,201,240,0.15), rgba(15,23,42,0.85));
+      border: 1px solid rgba(76,201,240,0.45);
+      font-size: 15px;
+      color: #f1f5f9;
+      min-height: 48px;
+      width: min(760px, 95%);
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
     }
-    .photo-column {
-      flex: 1;
+    .upload-status strong {
+      font-size: 18px;
+      color: #facc15;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .upload-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .upload-summary-bar {
+      width: min(760px, 95%);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+    .upload-summary-pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.82);
+      border: 1px solid rgba(148,163,184,0.22);
+      color: #e2e8f0;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .upload-summary-pill--warn {
+      color: #fdba74;
+      border-color: rgba(249,115,22,0.3);
+      background: rgba(249,115,22,0.1);
+    }
+    .upload-summary-pill--ok {
+      color: #86efac;
+      border-color: rgba(34,197,94,0.3);
+      background: rgba(34,197,94,0.1);
+    }
+    .upload-filter-bar {
+      width: min(760px, 95%);
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .upload-filter-btn {
+      border: 1px solid rgba(148,163,184,0.24);
+      background: rgba(15,23,42,0.82);
+      color: #e2e8f0;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .upload-filter-btn.is-active {
+      background: rgba(56,189,248,0.14);
+      border-color: rgba(56,189,248,0.3);
+      color: #bae6fd;
+    }
+    .upload-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 160px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.08);
+      color: #e2e8f0;
+      text-decoration: none;
+      border: 1px solid rgba(148,163,184,0.3);
+    }
+    .upload-link--primary {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+      cursor: pointer;
+    }
+    .upload-shell {
+      width: min(860px, 100%);
       display: flex;
       flex-direction: column;
-      gap: 12px;
-      min-width: 0;
+      gap: 16px;
     }
-    .photo-column--special {
-      flex: 1;
+    .upload-dropzone {
+      width: 100%;
+      border: 1px dashed rgba(76,201,240,0.55);
+      background: rgba(15,23,42,0.72);
+      border-radius: 18px;
+      padding: 18px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.28);
     }
-    .photo-column--special strong {
-      color: #facc15;
+    .upload-dropzone.is-dragover {
+      border-color: #38bdf8;
+      background: rgba(14, 116, 144, 0.24);
+    }
+    .upload-dropzone__title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .upload-dropzone__meta {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+    .upload-dropzone__actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .upload-dropzone__button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 16px;
+      background: #4cc9f0;
+      color: #062033;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .upload-dropzone__button--secondary {
+      background: rgba(255,255,255,0.08);
+      color: #e2e8f0;
+      border: 1px solid rgba(148,163,184,0.3);
+    }
+    .upload-dropzone input {
+      display: none;
+    }
+    .upload-batch-log {
+      width: 100%;
+      display: none;
+      text-align: left;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.82);
+      border: 1px solid rgba(148,163,184,0.2);
+      padding: 12px 14px;
+      box-sizing: border-box;
+      color: #cbd5e1;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .upload-batch-log.is-visible {
+      display: block;
+    }
+    .upload-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
     }
     .photo-slot {
       background: rgba(255,255,255,0.08);
@@ -56,29 +209,112 @@
       align-items: center;
       gap: 8px;
       box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+      min-width: 0;
     }
     .photo-slot--retry {
       box-shadow: 0 0 0 2px rgba(249,115,22,0.8), 0 8px 22px rgba(249,115,22,0.35);
     }
-    .photo-slot strong {
+    .photo-slot--uploading {
+      box-shadow: 0 0 0 2px rgba(76,201,240,0.8), 0 8px 22px rgba(76,201,240,0.2);
+    }
+    .photo-slot--focus {
+      box-shadow: 0 0 0 2px rgba(250,204,21,0.8), 0 10px 24px rgba(250,204,21,0.2);
+    }
+    .photo-slot__head {
+      width: 100%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      text-align: left;
+    }
+    .photo-slot__title {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .photo-slot__title strong {
       font-size: 16px;
+      word-break: break-word;
+    }
+    .photo-slot__meta {
+      font-size: 12px;
+      color: #94a3b8;
     }
     .slot-status {
       font-size: 12px;
       color: #94a3b8;
+      white-space: nowrap;
     }
     .slot-status--pending { color: #facc15; }
     .slot-status--retry { color: #f97316; }
     .slot-status--approved { color: #22c55e; }
+    .slot-status--uploading { color: #38bdf8; }
+    .photo-slot input {
+      display: none;
+    }
+    .preview {
+      width: 100%;
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15,23,42,0.85);
+      border-radius: 8px;
+      overflow: hidden;
+      color: #94a3b8;
+      font-size: 13px;
+      text-align: center;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    .preview img,
+    .preview video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .slot-retry-note {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fed7aa;
+      margin-top: 4px;
+      display: none;
+      width: 100%;
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: rgba(249,115,22,0.14);
+      border: 1px solid rgba(249,115,22,0.26);
+    }
+    .slot-upload-meta {
+      width: 100%;
+      font-size: 11px;
+      color: #94a3b8;
+      text-align: left;
+      word-break: break-word;
+      display: none;
+    }
+    .slot-upload-meta.is-visible {
+      display: block;
+    }
+    .upload-btn-row {
+      width: 100%;
+      display: flex;
+      gap: 8px;
+    }
     .upload-btn {
       background: #4cc9f0;
-      color: #fff;
-      border-radius: 6px;
+      color: #062033;
+      border-radius: 8px;
       padding: 8px 0;
-      width: 100%;
+      flex: 1;
       cursor: pointer;
       transition: background 0.2s ease, transform 0.2s ease;
       text-align: center;
+      font-weight: 700;
+      border: 0;
     }
     .upload-btn:hover {
       background: #3aa6d8;
@@ -86,6 +322,7 @@
     }
     .upload-btn--retry {
       background: #f97316;
+      color: #fff7ed;
     }
     .upload-btn--notify {
       position: relative;
@@ -103,24 +340,10 @@
       padding: 2px 6px;
       box-shadow: 0 0 12px rgba(249,115,22,0.6);
     }
-    .photo-slot input {
-      display: none;
-    }
-    .preview {
-      width: 100%;
-      min-height: 120px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(15,23,42,0.85);
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .preview img,
-    .preview video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+    .upload-btn--ghost {
+      background: rgba(255,255,255,0.08);
+      color: #e2e8f0;
+      border: 1px solid rgba(148,163,184,0.3);
     }
     .alert-area {
       position: fixed;
@@ -150,43 +373,18 @@
       color: #facc15;
       margin-bottom: 4px;
     }
-    .upload-status {
-      margin: 18px auto;
-      padding: 14px 18px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, rgba(76,201,240,0.15), rgba(15,23,42,0.85));
-      border: 1px solid rgba(76,201,240,0.45);
-      font-size: 15px;
-      color: #f1f5f9;
-      min-height: 48px;
-      width: min(640px, 95%);
-      text-align: center;
-      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-    }
-    .upload-status strong {
-      font-size: 18px;
-      color: #facc15;
-      display: block;
-      margin-bottom: 4px;
-    }
-    .slot-retry-note {
-      font-size: 12px;
-      color: #f97316;
-      margin-top: 4px;
-      display: none;
-    }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(-6px); }
       to { opacity: 1; transform: translateY(0); }
     }
     @media (max-width: 640px) {
-      .photo-layout {
-        flex-direction: column;
-      }
       .alert-area {
         left: 50%;
         right: auto;
         transform: translateX(-50%);
+      }
+      .upload-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -194,20 +392,46 @@
 <body>
   <h2>미션 사진 업로드</h2>
   <p id="teamInfo"></p>
+  <div class="upload-status" id="uploadGuide">필요한 사진만 순서대로 올리면 됩니다. 재촬영 요청이 온 사진만 다시 올리면 됩니다.</div>
   <div class="upload-status" id="uploadStatus"></div>
-  <div class="photo-layout">
-    <div class="photo-column" id="photoColumnLeft"></div>
-    <div class="photo-column photo-column--special" id="photoColumnRight"></div>
+  <div class="upload-summary-bar" id="uploadSummaryBar">
+    <div class="upload-summary-pill" id="summaryTotal">전체 0개</div>
+    <div class="upload-summary-pill" id="summaryUploaded">업로드 0개</div>
+    <div class="upload-summary-pill" id="summaryApproved">확인 완료 0개</div>
+    <div class="upload-summary-pill" id="summaryRetry">다시 올리기 0개</div>
+  </div>
+  <div class="upload-filter-bar" id="uploadFilterBar">
+    <button class="upload-filter-btn is-active" id="filterAllButton" type="button">전체 보기</button>
+    <button class="upload-filter-btn" id="filterRequiredButton" type="button">꼭 필요한 사진만</button>
+    <button class="upload-filter-btn" id="filterOptionalButton" type="button">선택 사진만</button>
+  </div>
+  <div class="upload-actions">
+    <button class="upload-link upload-link--primary" id="goBackButton" type="button">이전 화면으로</button>
+    <a class="upload-link" id="dashboardLink" href="./dashboard.html">대시보드로 이동</a>
+    <a class="upload-link" id="loginLink" href="./team_login.html">팀 로그인으로 이동</a>
+  </div>
+  <div class="upload-shell">
+    <section class="upload-dropzone" id="bulkDropzone">
+      <div class="upload-dropzone__title">사진과 영상을 한 번에 여러 개 올릴 수 있습니다</div>
+      <div class="upload-dropzone__meta" id="bulkDropzoneMeta">비어 있는 칸과 다시 올려야 하는 칸부터 자동으로 채웁니다. 순서가 맞지 않아도 괜찮습니다.</div>
+      <div class="upload-dropzone__actions">
+        <button class="upload-dropzone__button" id="bulkUploadButton" type="button">여러 파일 선택</button>
+        <button class="upload-dropzone__button upload-dropzone__button--secondary" id="retryOnlyButton" type="button">다시 찍은 사진만 올리기</button>
+      </div>
+      <input id="bulkUploadInput" type="file" accept="image/*,video/*" multiple />
+    </section>
+    <div class="upload-batch-log" id="uploadBatchLog"></div>
+    <section class="upload-grid" id="photoSlotGrid"></section>
   </div>
   <div class="alert-area" id="uploadAlerts"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.3/dist/heic2any.min.js"></script>
   <script type="module">
     import {
       db,
       storage,
       ref,
       set,
+      update,
       onValue,
       sRef,
       uploadBytes,
@@ -216,173 +440,288 @@
       push,
       serverTimestamp,
     } from "./js/firebase_config.js";
+    import { loadTeamSession } from "./js/session_module.js";
+    import { STEP_MODES, getStepConfig, normalizeMissionEntry } from "./js/mission_rules.js";
+    import { getSlotDefinitionsFromMission } from "./js/photo_slots.js";
+    import { resolveMissionConfigFromProject } from "./js/project_mission_resolver.js";
 
     const params = new URLSearchParams(window.location.search);
-    const projectId = params.get("project") || "default";
-    const teamId = params.get("team") || "Team1";
-    const missionId = params.get("mission") || "1";
+    const projectId = params.get("project");
+    const teamId = params.get("team");
+    const missionId = params.get("mission");
+    const session = loadTeamSession();
 
     const infoEl = document.getElementById("teamInfo");
-    infoEl.textContent = `${projectId} · ${teamId} | Mission ${missionId}`;
-    const titleEl = document.querySelector("h2");
-    if (titleEl) {
-      titleEl.textContent = `${teamId} · Mission ${missionId} 사진 업로드`;
-    }
-
-    const leftColumn = document.getElementById("photoColumnLeft");
-    const rightColumn = document.getElementById("photoColumnRight");
+    const loginLink = document.getElementById("loginLink");
+    const dashboardLink = document.getElementById("dashboardLink");
+    const goBackButton = document.getElementById("goBackButton");
+    const guideBanner = document.getElementById("uploadGuide");
+    const statusBanner = document.getElementById("uploadStatus");
+    const summaryTotalEl = document.getElementById("summaryTotal");
+    const summaryUploadedEl = document.getElementById("summaryUploaded");
+    const summaryApprovedEl = document.getElementById("summaryApproved");
+    const summaryRetryEl = document.getElementById("summaryRetry");
+    const filterAllButton = document.getElementById("filterAllButton");
+    const filterRequiredButton = document.getElementById("filterRequiredButton");
+    const filterOptionalButton = document.getElementById("filterOptionalButton");
     const alertArea = document.getElementById("uploadAlerts");
+    const slotGrid = document.getElementById("photoSlotGrid");
+    const bulkDropzone = document.getElementById("bulkDropzone");
+    const bulkUploadButton = document.getElementById("bulkUploadButton");
+    const bulkUploadInput = document.getElementById("bulkUploadInput");
+    const retryOnlyButton = document.getElementById("retryOnlyButton");
+    const batchLogEl = document.getElementById("uploadBatchLog");
+    const bulkDropzoneMeta = document.getElementById("bulkDropzoneMeta");
+
     const slotElements = new Map();
     const slotStateCache = new Map();
     let slotDefinitions = [];
-    const statusBanner = document.getElementById("uploadStatus");
+    let latestUploadsMap = {};
+    let latestMissionState = {};
+    let delayTicker = null;
     let approvalNotified = false;
+    let activeUploadCount = 0;
+    let nextBulkMode = "auto";
+    let activeFilter = "all";
+    let focusSlotTimer = null;
+
+    if (loginLink && projectId) {
+      loginLink.href = `./team_login.html?project=${encodeURIComponent(projectId)}`;
+    }
+    if (dashboardLink) {
+      dashboardLink.href = "./dashboard.html";
+      dashboardLink.style.display = session?.projectId === projectId && session?.teamId === teamId ? "inline-flex" : "none";
+    }
+    if (goBackButton) {
+      goBackButton.addEventListener("click", () => {
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          window.location.href = loginLink?.href || "./team_login.html";
+        }
+      });
+    }
+    if (infoEl) {
+      infoEl.textContent = projectId && teamId && missionId
+        ? `${teamId} · 미션 ${missionId}`
+        : "올바른 업로드 주소가 필요합니다.";
+    }
+    const titleEl = document.querySelector("h2");
+    if (titleEl && teamId && missionId) {
+      titleEl.textContent = `${teamId} · 미션 ${missionId} 사진 올리기`;
+    }
+    if (guideBanner && teamId && missionId) {
+      guideBanner.innerHTML = `<strong>안내</strong> 필요한 사진만 올리면 됩니다. 여러 장을 한 번에 올려도 되고, 다시 찍은 사진만 따로 올려도 됩니다.`;
+    }
     if (statusBanner) {
-      statusBanner.textContent = "사진 슬롯 구성을 불러오는 중입니다...";
+      statusBanner.textContent = "올려야 할 사진 목록을 불러오는 중입니다...";
     }
 
     init();
 
     async function init() {
-      slotDefinitions = await loadSlotDefinitions(projectId, teamId, missionId);
-      if (!slotDefinitions.length) {
-        document.querySelector(".photo-layout").innerHTML =
-          "<p>이 미션은 사진 업로드가 필요하지 않습니다.</p>";
-        if (statusBanner) statusBanner.textContent = "이 미션은 사진 업로드가 필요하지 않습니다.";
+      bindBulkEvents();
+      bindFilterEvents();
+      const validation = await validateAccess();
+      if (!validation.ok) {
+        renderFatalError(validation.message);
         return;
       }
-
-      slotDefinitions.forEach((slot) => {
-        const column = slot.group === "special" ? rightColumn : leftColumn;
-        const wrapper = document.createElement("div");
-        wrapper.className = "photo-slot";
-        wrapper.innerHTML = `
-          <strong>${slot.label}</strong>
-          <span class="slot-status" id="status-${slot.id}">대기</span>
-          <input type="file" id="file-${slot.id}" accept="image/*,video/*">
-          <label class="upload-btn" id="label-${slot.id}" for="file-${slot.id}">📤 업로드</label>
-          <div class="preview" id="preview-${slot.id}">미리보기</div>
-        `;
-        column.appendChild(wrapper);
-        slotElements.set(slot.id, wrapper);
-      });
+      const activeStepLabel = validation.activeStepKey === "codeStep" ? "코드" : "미션";
+      if (titleEl && teamId && missionId) {
+        titleEl.textContent = `${teamId} · ${activeStepLabel} ${missionId} 사진 올리기`;
+      }
+      if (infoEl) {
+        infoEl.textContent = `${teamId} · ${activeStepLabel} ${missionId}`;
+      }
+      slotDefinitions = validation.slotDefinitions;
+      if (!slotDefinitions.length) {
+        renderFatalError("이 미션은 사진 업로드가 필요하지 않습니다.");
+        return;
+      }
+      renderSlots(slotDefinitions);
+      updateDropzoneMeta();
       if (statusBanner) {
-        statusBanner.textContent = `📸 0/${slotDefinitions.length} 사진을 업로드했습니다.`;
+        statusBanner.textContent = `아직 올리지 않은 사진이 있습니다. 0/${slotDefinitions.length}개 업로드됨`;
       }
 
       const missionRef = ref(db, `uploads_meta/${projectId}/${teamId}/mission_${missionId}`);
-      onValue(missionRef, (snapshot) => {
-        const raw = snapshot.val() || {};
-        const normalized = normalizeUploads(raw);
+      const missionStateRef = ref(db, `projects/${projectId}/teams/${teamId}/missions/${missionId}`);
 
-        slotDefinitions.forEach((slot) => {
-          const preview = document.getElementById(`preview-${slot.id}`);
-          const statusEl = document.getElementById(`status-${slot.id}`);
-          const labelEl = document.getElementById(`label-${slot.id}`);
-          if (!preview || !statusEl || !labelEl) return;
-          const item = normalized[slot.id];
-          if (!item) {
-            preview.textContent = "미리보기";
-            statusEl.textContent = "대기";
-            statusEl.className = "slot-status";
-            labelEl.textContent = "📤 업로드";
-            labelEl.classList.remove("upload-btn--retry", "upload-btn--notify");
-            slotStateCache.delete(slot.id);
+      onValue(missionRef, (snapshot) => {
+        latestUploadsMap = normalizeUploads(snapshot.val() || {});
+        slotDefinitions.forEach((slot) => renderSlotState(slot, latestUploadsMap[slot.id] || null));
+        updateDropzoneMeta();
+        updateSummaryBar(latestUploadsMap);
+        updateOverallStatus(latestUploadsMap);
+      });
+
+      onValue(missionStateRef, (snapshot) => {
+        latestMissionState = snapshot.val() || {};
+        syncDelayTicker();
+        updateOverallStatus(latestUploadsMap);
+      });
+
+      updateOverallStatus({});
+      updateSummaryBar({});
+    }
+
+    function bindFilterEvents() {
+      filterAllButton?.addEventListener("click", () => setActiveFilter("all"));
+      filterRequiredButton?.addEventListener("click", () => setActiveFilter("required"));
+      filterOptionalButton?.addEventListener("click", () => setActiveFilter("optional"));
+    }
+
+    function bindBulkEvents() {
+      bulkUploadButton?.addEventListener("click", () => {
+        nextBulkMode = "auto";
+        bulkUploadInput?.click();
+      });
+      retryOnlyButton?.addEventListener("click", () => {
+        nextBulkMode = "retry";
+        bulkUploadInput?.click();
+      });
+      bulkUploadInput?.addEventListener("change", async (event) => {
+        const files = Array.from(event.target.files || []);
+        const retryOnly = nextBulkMode === "retry";
+        await handleBulkUpload(files, { retryOnly });
+        nextBulkMode = "auto";
+        event.target.value = "";
+      });
+      ["dragenter", "dragover"].forEach((eventName) => {
+        bulkDropzone?.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          bulkDropzone.classList.add("is-dragover");
+        });
+      });
+      ["dragleave", "drop"].forEach((eventName) => {
+        bulkDropzone?.addEventListener(eventName, (event) => {
+          event.preventDefault();
+          if (eventName === "drop") {
+            bulkDropzone.classList.remove("is-dragover");
+            const files = Array.from(event.dataTransfer?.files || []);
+            handleBulkUpload(files);
             return;
           }
-          applySlotState(slot, item, preview, statusEl, labelEl);
+          const related = event.relatedTarget;
+          if (!related || !bulkDropzone.contains(related)) {
+            bulkDropzone.classList.remove("is-dragover");
+          }
         });
-        updateOverallStatus(normalized);
       });
-
-      slotDefinitions.forEach((slot) => {
-        const input = document.getElementById(`file-${slot.id}`);
-        input.addEventListener("change", (event) => handleUpload(event, slot));
-      });
-      updateOverallStatus({});
     }
 
-    async function loadSlotDefinitions(projectId, teamId, missionId) {
+    async function validateAccess() {
+      if (!projectId || !teamId || !missionId) {
+        return { ok: false, message: "잘못된 접근입니다. QR 또는 링크를 다시 확인하세요." };
+      }
       try {
-        const cfgRef = ref(db, `projects/${projectId}/teams/${teamId}/config/missions/${missionId}`);
-        const snapshot = await get(cfgRef);
-        const config = snapshot.val() || {};
-        const missionNumber = Number(missionId);
-        let photoSlots = Number(config.photoSlots) || 0;
-        let specialSlots = Number(config.specialSlots) || 0;
-        if (photoSlots <= 0 && specialSlots <= 0) return [];
-        return buildSlotDefinitions(photoSlots, specialSlots);
-      } catch (error) {
-        console.error("슬롯 정의 불러오기 실패:", error);
-        return [];
-      }
-    }
-
-    function buildSlotDefinitions(photoSlots, specialSlots) {
-      const defs = [];
-      for (let i = 1; i <= photoSlots; i++) {
-        defs.push({ id: `Photo${i}`, label: `Photo ${i}`, group: "photo" });
-      }
-      for (let i = 1; i <= specialSlots; i++) {
-        defs.push({ id: `S${i}`, label: `S${i}`, group: "special" });
-      }
-      return defs;
-    }
-
-    async function handleUpload(event, slot) {
-      let file = event.target.files?.[0];
-      if (!file) return;
-
-      const preview = document.getElementById(`preview-${slot.id}`);
-      const statusEl = document.getElementById(`status-${slot.id}`);
-      const labelEl = document.getElementById(`label-${slot.id}`);
-      preview.textContent = "업로드 중...";
-      statusEl.textContent = "업로드 중";
-      labelEl.textContent = "⏳ 업로드 중";
-      labelEl.classList.remove("upload-btn--retry", "upload-btn--notify");
-
-      try {
-        if (file.name.toLowerCase().endsWith(".heic")) {
-          const blob = await heic2any({ blob: file, toType: "image/jpeg" });
-          file = new File([blob], file.name.replace(/\.heic$/i, ".jpg"), { type: "image/jpeg" });
+        const [metaSnapshot, teamSnapshot, missionSnapshot, routingSnapshot, teamOverrideSnapshot, stateSnapshot] = await Promise.all([
+          get(ref(db, `projects/${projectId}/meta`)),
+          get(ref(db, `projects/${projectId}/teams/${teamId}/profile`)),
+          get(ref(db, `projects/${projectId}/teams/${teamId}/config/missions/${missionId}`)),
+          get(ref(db, `projects/${projectId}/routing`)),
+          get(ref(db, `projects/${projectId}/teamOverrides/${teamId}`)),
+          get(ref(db, `projects/${projectId}/teams/${teamId}/missions/${missionId}`)),
+        ]);
+        const meta = metaSnapshot.val() || {};
+        const now = Date.now();
+        if (meta.status === "finished") {
+          return { ok: false, message: "이 프로젝트는 이미 종료되었습니다. 운영진 안내를 확인하세요." };
         }
-
-        const extension = file.name.split(".").pop();
-        const filename = `${teamId}_m${missionId}_${slot.id}_${Date.now()}.${extension}`;
-        const storageRef = sRef(storage, `uploads/${projectId}/${teamId}/mission_${missionId}/${filename}`);
-
-        await uploadBytes(storageRef, file);
-        const url = await getDownloadURL(storageRef);
-
-      await set(ref(db, `uploads_meta/${projectId}/${teamId}/mission_${missionId}/${slot.id}`), {
-        url,
-        type: file.type,
-        slot: slot.id,
-        label: slot.label,
-        status: "pending",
-        uploadedAt: Date.now(),
-      });
-
-      await push(ref(db, `chat/${projectId}/${teamId}`), {
-        sender: teamId,
-        text: `[사진 업로드] Mission ${missionId} ${slot.label}`,
-        createdAt: serverTimestamp(),
-      });
-
-        preview.innerHTML = file.type.startsWith("video")
-          ? `<video src="${url}" controls playsinline></video>`
-          : `<img src="${url}" alt="${slot.label}">`;
-        statusEl.textContent = "대기";
-        statusEl.className = "slot-status slot-status--pending";
-        labelEl.textContent = "📤 업로드";
-        alert(`✅ ${slot.label} 업로드 완료`);
-      } catch (error) {
-        console.error("업로드 실패:", error);
-        preview.textContent = "업로드 실패";
-        alert("❌ 업로드 중 오류가 발생했습니다.");
-      } finally {
-        event.target.value = "";
+        if (meta.endAt && now > Number(meta.endAt)) {
+          return { ok: false, message: "운영 시간이 종료되어 업로드할 수 없습니다." };
+        }
+        if (!teamSnapshot.exists()) {
+          return { ok: false, message: "팀 정보를 찾을 수 없습니다. 운영진에게 문의하세요." };
+        }
+        const missionState = stateSnapshot.val() || {};
+        if (missionState.stage === "done") {
+          return { ok: false, message: "이미 확인이 끝난 미션입니다. 대시보드에서 다음 미션을 확인하세요." };
+        }
+        if (missionState.stage === "locked") {
+          return { ok: false, message: "아직 사진을 올리는 단계가 아닙니다. 대시보드에서 현재 미션을 먼저 확인하세요." };
+        }
+        const config = normalizeMissionEntry(resolveMissionConfigFromProject({
+          teamId,
+          missionNumber: Number(missionId),
+          missionTotal: Number(meta.missionTotal) || 9,
+          routing: routingSnapshot.val() || null,
+          teamOverride: teamOverrideSnapshot.val() || {},
+          legacyMission: missionSnapshot.val() || {},
+        }));
+        const activeStepKey = missionState.stage === "mission" ? "missionStep" : "codeStep";
+        const activeStep = getStepConfig(config, activeStepKey);
+        if (activeStep.mode !== STEP_MODES.PHOTO_HQ) {
+          return {
+            ok: false,
+            message: activeStepKey === "codeStep"
+              ? "현재 코드 단계는 사진 업로드 방식이 아닙니다. 대시보드에서 현재 진행 방식을 확인하세요."
+              : "현재 미션 단계는 사진 업로드 방식이 아닙니다. 대시보드에서 현재 진행 방식을 확인하세요.",
+          };
+        }
+        return {
+          ok: true,
+          config,
+          activeStepKey,
+          slotDefinitions: getSlotDefinitionsFromMission(config).map((slot) => ({
+            ...slot,
+            id: slot.slotId,
+          })),
+        };
+      } catch (_error) {
+        return { ok: false, message: "업로드 준비 중 오류가 발생했습니다. 네트워크를 확인하세요." };
       }
+    }
+
+    function renderFatalError(message) {
+      if (statusBanner) {
+        statusBanner.textContent = message;
+      }
+      if (slotGrid) {
+        slotGrid.innerHTML = `<p>${message}</p>`;
+      }
+      if (dashboardLink) {
+        dashboardLink.style.display = session?.projectId === projectId && session?.teamId === teamId ? "inline-flex" : "none";
+      }
+    }
+
+    function renderSlots(definitions = []) {
+      if (!slotGrid) return;
+      slotGrid.innerHTML = definitions.map((slot) => `
+        <article class="photo-slot" data-slot-id="${slot.id}">
+          <div class="photo-slot__head">
+            <div class="photo-slot__title">
+              <strong>${escapeHtml(slot.label)}</strong>
+              <div class="photo-slot__meta">${slot.order}번 사진${slot.required === false ? " · 선택" : " · 꼭 필요"}</div>
+            </div>
+            <span class="slot-status" id="status-${slot.id}">아직 안 올림</span>
+          </div>
+          <div class="preview" id="preview-${slot.id}">사진 미리보기</div>
+          <div class="slot-retry-note" id="retry-${slot.id}"></div>
+          <div class="slot-upload-meta" id="meta-${slot.id}"></div>
+          <div class="upload-btn-row">
+            <label class="upload-btn" id="label-${slot.id}" for="file-${slot.id}">올리기</label>
+            <button class="upload-btn upload-btn--ghost" id="replace-${slot.id}" type="button">다시 선택</button>
+          </div>
+          <input type="file" id="file-${slot.id}" accept="image/*,video/*">
+        </article>
+      `).join("");
+      definitions.forEach((slot) => {
+        const wrapper = slotGrid.querySelector(`[data-slot-id="${slot.id}"]`);
+        if (!wrapper) return;
+        slotElements.set(slot.id, wrapper);
+        wrapper.querySelector(`#file-${slot.id}`)?.addEventListener("change", async (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file) return;
+          await uploadFilesToSlots([file], [slot], { manual: true });
+        });
+        wrapper.querySelector(`#replace-${slot.id}`)?.addEventListener("click", () => {
+          wrapper.querySelector(`#file-${slot.id}`)?.click();
+        });
+      });
+      applySlotOrderingAndFilter();
     }
 
     function normalizeUploads(raw) {
@@ -395,53 +734,303 @@
       return normalized;
     }
 
-    function applySlotState(slot, item, previewEl, statusEl, labelEl) {
+    function renderSlotState(slot, item) {
+      const preview = document.getElementById(`preview-${slot.id}`);
+      const statusEl = document.getElementById(`status-${slot.id}`);
+      const labelEl = document.getElementById(`label-${slot.id}`);
+      const retryEl = document.getElementById(`retry-${slot.id}`);
+      const metaEl = document.getElementById(`meta-${slot.id}`);
+      const wrapper = slotElements.get(slot.id);
+      if (!preview || !statusEl || !labelEl || !retryEl || !metaEl || !wrapper) return;
+
+      if (!item) {
+        statusEl.textContent = activeUploadCount > 0 ? "업로드 대기" : "아직 안 올림";
+        statusEl.className = "slot-status";
+        labelEl.textContent = "올리기";
+        labelEl.classList.remove("upload-btn--retry", "upload-btn--notify");
+        retryEl.textContent = "";
+        retryEl.style.display = "none";
+        metaEl.textContent = "";
+        metaEl.classList.remove("is-visible");
+        preview.textContent = "사진 미리보기";
+        wrapper.classList.remove("photo-slot--retry", "photo-slot--uploading");
+        slotStateCache.delete(slot.id);
+        return;
+      }
+
       const status = item.status || "pending";
       const prev = slotStateCache.get(slot.id);
-      const wrapper = slotElements.get(slot.id);
       if (status === "retry" && prev !== "retry") {
         announceRetry(slot, item);
-      }
-      if (wrapper) {
-        wrapper.classList.toggle("photo-slot--retry", status === "retry");
-        let retryNote = wrapper.querySelector(".slot-retry-note");
-        if (!retryNote) {
-          retryNote = document.createElement("div");
-          retryNote.className = "slot-retry-note";
-          wrapper.appendChild(retryNote);
-        }
-        if (status === "retry" && item.retryReason) {
-          retryNote.textContent = `사유: ${item.retryReason}`;
-          retryNote.style.display = "block";
-        } else {
-          retryNote.textContent = "";
-          retryNote.style.display = "none";
-        }
       }
       slotStateCache.set(slot.id, status);
       statusEl.textContent = statusLabel(status, item);
       statusEl.className = `slot-status slot-status--${status}`;
-      labelEl.textContent = status === "retry" ? "🔁 재업로드" : "📤 업로드";
+      labelEl.textContent = status === "retry" ? "다시 올리기" : "올리기";
       labelEl.classList.toggle("upload-btn--retry", status === "retry");
       labelEl.classList.toggle("upload-btn--notify", status === "retry");
-      previewEl.innerHTML = item.type?.startsWith("video")
+      wrapper.classList.toggle("photo-slot--retry", status === "retry");
+      wrapper.classList.remove("photo-slot--uploading");
+      if (item.retryReason) {
+        retryEl.textContent = `다시 촬영 이유: ${item.retryReason}`;
+        retryEl.style.display = "block";
+      } else {
+        retryEl.textContent = "";
+        retryEl.style.display = "none";
+      }
+      metaEl.textContent = buildMetaLabel(item);
+      metaEl.classList.toggle("is-visible", Boolean(metaEl.textContent));
+      preview.innerHTML = item.type?.startsWith("video")
         ? `<video src="${item.url}" controls playsinline></video>`
-        : `<img src="${item.url}" alt="${slot.label}">`;
+        : `<img src="${item.url}" alt="${escapeAttr(slot.label)}">`;
+      applySlotOrderingAndFilter();
+    }
+
+    async function handleBulkUpload(files = [], options = {}) {
+      const validFiles = Array.from(files).filter((file) => file && /^(image|video)\//i.test(file.type || ""));
+      if (!validFiles.length) {
+        showToast("사진 또는 동영상 파일을 선택하세요.", "warning", 3200);
+        return;
+      }
+      const targetSlots = resolveAssignableSlots(options.retryOnly === true);
+      if (!targetSlots.length) {
+        showToast(options.retryOnly ? "다시 올려야 할 사진이 없습니다." : "지금 바로 채울 수 있는 빈 칸이 없습니다. 각 사진 카드에서 다시 선택해 주세요.", "warning", 3600);
+        return;
+      }
+      const usableFiles = validFiles.slice(0, targetSlots.length);
+      const skippedCount = validFiles.length - usableFiles.length;
+      if (skippedCount > 0) {
+        showToast(`필요한 칸 수만큼만 올렸습니다. 남은 ${skippedCount}개 파일은 건너뛰었습니다.`, "warning", 3600);
+      }
+      await uploadFilesToSlots(usableFiles, targetSlots, { manual: false, retryOnly: options.retryOnly === true });
+    }
+
+    function resolveAssignableSlots(retryOnly = false) {
+      const retrySlots = slotDefinitions.filter((slot) => latestUploadsMap[slot.id]?.status === "retry");
+      if (retryOnly) return retrySlots;
+      const emptySlots = slotDefinitions.filter((slot) => !latestUploadsMap[slot.id]?.url);
+      const pendingSlots = slotDefinitions.filter((slot) => latestUploadsMap[slot.id]?.url && latestUploadsMap[slot.id]?.status === "pending");
+      return [...retrySlots, ...emptySlots, ...pendingSlots];
+    }
+
+    async function uploadFilesToSlots(files = [], slots = [], options = {}) {
+      if (!files.length || !slots.length) return;
+      const batchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      activeUploadCount += files.length;
+      updateDropzoneMeta();
+      renderBatchLog(files, slots, batchId, options);
+      try {
+        for (let index = 0; index < files.length; index += 1) {
+          const file = files[index];
+          const slot = slots[index];
+          if (!slot) break;
+          await uploadSingleFile(file, slot, batchId, index, files.length);
+        }
+        showToast(files.length > 1 ? `${files.length}개 파일 업로드가 완료되었습니다.` : `${slots[0]?.label || "파일"} 업로드가 완료되었습니다.`, "info", 2600);
+      } catch (error) {
+        console.error("업로드 실패:", error);
+        showToast("업로드 중 문제가 생겼습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.", "warning", 4200);
+      } finally {
+        activeUploadCount = Math.max(0, activeUploadCount - files.length);
+        updateDropzoneMeta();
+      }
+    }
+
+    async function uploadSingleFile(file, slot, batchId, batchIndex, batchSize) {
+      const preview = document.getElementById(`preview-${slot.id}`);
+      const statusEl = document.getElementById(`status-${slot.id}`);
+      const wrapper = slotElements.get(slot.id);
+      if (preview) preview.textContent = "업로드 중...";
+      if (statusEl) {
+        statusEl.textContent = "업로드 중";
+        statusEl.className = "slot-status slot-status--uploading";
+      }
+      wrapper?.classList.add("photo-slot--uploading");
+
+      const extension = extractExtension(file.name, file.type);
+      const filename = `${teamId}_m${missionId}_${slot.id}_${Date.now()}_${batchIndex + 1}.${extension}`;
+      const storagePath = `uploads/${projectId}/${teamId}/mission_${missionId}/${filename}`;
+      const storageRef = sRef(storage, storagePath);
+      await uploadBytes(storageRef, file, { contentType: file.type || undefined });
+      const url = await getDownloadURL(storageRef);
+      const payload = {
+        url,
+        type: file.type || "application/octet-stream",
+        slot: slot.id,
+        label: slot.label,
+        stepKey: latestMissionState?.stage === "mission" ? "missionStep" : "codeStep",
+        status: "pending",
+        uploadedAt: Date.now(),
+        originalName: file.name || filename,
+        storagePath,
+        size: Number(file.size) || 0,
+        batchId,
+        batchIndex: batchIndex + 1,
+        batchSize,
+      };
+      await update(ref(db), {
+        [`uploads_meta/${projectId}/${teamId}/mission_${missionId}/${slot.id}`]: payload,
+        [`uploads_batches/${projectId}/${teamId}/mission_${missionId}/${batchId}/${slot.id}`]: payload,
+      });
+      await push(ref(db, `chat/${projectId}/${teamId}`), {
+        sender: teamId,
+        text: `[사진 업로드] Mission ${missionId} ${slot.label}${batchSize > 1 ? ` (${batchIndex + 1}/${batchSize})` : ""}`,
+        createdAt: serverTimestamp(),
+      });
+      window.setTimeout(() => {
+        scrollToNextActionSlot(slot.id);
+      }, 120);
+    }
+
+    function renderBatchLog(files = [], slots = [], batchId = "", options = {}) {
+      if (!batchLogEl) return;
+      const lines = files.map((file, index) => {
+        const slot = slots[index];
+        return `${index + 1}. ${file.name} → ${slot?.label || "-"}`;
+      });
+      batchLogEl.innerHTML = `<strong>이번에 올리는 파일</strong>${batchId ? `<br>업로드 묶음 ID: ${escapeHtml(batchId)}` : ""}<br>${lines.map((line) => escapeHtml(line)).join("<br>")}${options.retryOnly ? "<br>다시 촬영한 사진부터 먼저 채웁니다." : ""}`;
+      batchLogEl.classList.add("is-visible");
+    }
+
+    function updateDropzoneMeta() {
+      if (!bulkDropzoneMeta) return;
+      const retryCount = slotDefinitions.filter((slot) => latestUploadsMap[slot.id]?.status === "retry").length;
+      const emptyCount = slotDefinitions.filter((slot) => !latestUploadsMap[slot.id]?.url).length;
+      const parts = [`다시 올릴 사진 ${retryCount}개`, `아직 안 올린 사진 ${emptyCount}개`];
+      if (activeUploadCount > 0) {
+        parts.push(`업로드 중 ${activeUploadCount}개`);
+      }
+      bulkDropzoneMeta.textContent = `${parts.join(" · ")} · 여러 파일을 한 번에 선택하거나 끌어놓으면 순서대로 자동으로 들어갑니다.`;
+    }
+
+    function updateSummaryBar(slotsMap = {}) {
+      const required = slotDefinitions.length;
+      const summary = slotDefinitions.map((slot) => slotsMap[slot.id]);
+      const uploaded = summary.filter((item) => item?.url).length;
+      const approved = summary.filter((item) => item?.status === "approved").length;
+      const retry = summary.filter((item) => item?.status === "retry").length;
+      if (summaryTotalEl) {
+        summaryTotalEl.textContent = `전체 ${required}개`;
+      }
+      if (summaryUploadedEl) {
+        summaryUploadedEl.textContent = `업로드 ${uploaded}개`;
+        summaryUploadedEl.classList.toggle("upload-summary-pill--ok", uploaded === required && required > 0);
+      }
+      if (summaryApprovedEl) {
+        summaryApprovedEl.textContent = `확인 완료 ${approved}개`;
+        summaryApprovedEl.classList.toggle("upload-summary-pill--ok", approved === required && required > 0);
+      }
+      if (summaryRetryEl) {
+        summaryRetryEl.textContent = `다시 올리기 ${retry}개`;
+        summaryRetryEl.classList.toggle("upload-summary-pill--warn", retry > 0);
+      }
+    }
+
+    function setActiveFilter(nextFilter = "all") {
+      activeFilter = nextFilter;
+      filterAllButton?.classList.toggle("is-active", nextFilter === "all");
+      filterRequiredButton?.classList.toggle("is-active", nextFilter === "required");
+      filterOptionalButton?.classList.toggle("is-active", nextFilter === "optional");
+      applySlotOrderingAndFilter();
+    }
+
+    function applySlotOrderingAndFilter() {
+      if (!slotGrid) return;
+      const items = slotDefinitions
+        .map((slot, index) => {
+          const el = slotElements.get(slot.id);
+          const state = latestUploadsMap[slot.id] || null;
+          return { slot, el, state, index };
+        })
+        .filter((entry) => entry.el);
+
+      items.forEach(({ slot, el, state }) => {
+        const isRequired = slot.required !== false;
+        const isRetry = state?.status === "retry";
+        const shouldShow =
+          isRetry ||
+          activeFilter === "all" ||
+          (activeFilter === "required" && isRequired) ||
+          (activeFilter === "optional" && !isRequired);
+        el.classList.toggle("hidden", !shouldShow);
+        if (isRetry) {
+          el.style.order = "-10";
+        } else if (!state?.url) {
+          el.style.order = "0";
+        } else if (state?.status === "approved") {
+          el.style.order = "20";
+        } else {
+          el.style.order = "10";
+        }
+      });
+
+      items
+        .sort((a, b) => {
+          const aRetry = a.state?.status === "retry" ? 1 : 0;
+          const bRetry = b.state?.status === "retry" ? 1 : 0;
+          if (aRetry !== bRetry) return bRetry - aRetry;
+          const aEmpty = a.state?.url ? 0 : 1;
+          const bEmpty = b.state?.url ? 0 : 1;
+          if (aEmpty !== bEmpty) return bEmpty - aEmpty;
+          return a.index - b.index;
+        })
+        .forEach(({ el }) => slotGrid.appendChild(el));
+    }
+
+    function scrollToNextActionSlot(currentSlotId = "") {
+      const target =
+        slotDefinitions.find((slot) => slot.id !== currentSlotId && latestUploadsMap[slot.id]?.status === "retry") ||
+        slotDefinitions.find((slot) => slot.id !== currentSlotId && !latestUploadsMap[slot.id]?.url) ||
+        slotDefinitions.find((slot) => slot.id !== currentSlotId && latestUploadsMap[slot.id]?.status === "pending");
+      const fallback = currentSlotId ? slotElements.get(currentSlotId) : null;
+      const targetEl = target ? slotElements.get(target.id) : fallback;
+      if (!targetEl) return;
+      targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      targetEl.classList.add("photo-slot--focus");
+      if (focusSlotTimer) window.clearTimeout(focusSlotTimer);
+      focusSlotTimer = window.setTimeout(() => {
+        targetEl.classList.remove("photo-slot--focus");
+      }, 1800);
+    }
+
+    function extractExtension(name = "", mime = "") {
+      const match = String(name).match(/\.([a-zA-Z0-9]+)$/);
+      if (match?.[1]) return match[1].toLowerCase();
+      if (mime.startsWith("image/")) return mime.replace("image/", "") || "jpg";
+      if (mime.startsWith("video/")) return mime.replace("video/", "") || "mp4";
+      return "dat";
+    }
+
+    function buildMetaLabel(item = {}) {
+      const parts = [];
+      if (item.originalName) parts.push(item.originalName);
+      if (Number(item.size) > 0) parts.push(formatBytes(item.size));
+      if (item.batchId) parts.push(item.batchId);
+      return parts.join(" · ");
+    }
+
+    function formatBytes(bytes = 0) {
+      if (!Number.isFinite(bytes) || bytes <= 0) return "";
+      if (bytes < 1024) return `${bytes}B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
     }
 
     function statusLabel(status = "pending", item = {}) {
       switch (status) {
         case "approved":
-          return "승인";
+          return "확인 완료";
         case "retry":
-          return item.retryReason ? `재도전 (${item.retryReason})` : "재도전";
+          return "다시 올리기";
+        case "uploading":
+          return "업로드 중";
         default:
-          return "대기";
+          return "확인 대기";
       }
     }
 
     function announceRetry(slot, item = {}) {
-      const message = `[본부] ${slot.label} 재도전 요청${item.retryReason ? ` (${item.retryReason})` : ""}`;
+      const message = `[본부] ${slot.label} 사진을 다시 올려주세요${item.retryReason ? ` (${item.retryReason})` : ""}`;
       showToast(message, "warning");
     }
 
@@ -449,7 +1038,7 @@
       if (!alertArea) return;
       const toast = document.createElement("div");
       toast.className = `alert-toast alert-toast--${variant}`;
-      toast.innerHTML = `<strong>${variant === "warning" ? "알림" : "안내"}</strong><span>${message}</span>`;
+      toast.innerHTML = `<strong>${variant === "warning" ? "알림" : "안내"}</strong><span>${escapeHtml(message)}</span>`;
       alertArea.appendChild(toast);
       setTimeout(() => {
         toast.style.opacity = "0";
@@ -469,27 +1058,60 @@
       const uploaded = summary.filter((item) => item?.url).length;
       const approved = summary.filter((item) => item?.status === "approved").length;
       const hasRetry = summary.some((item) => item?.status === "retry");
+      const isDelay = latestMissionState?.stepStatus === "delay";
+      const delayRemain = latestMissionState?.unlockAt
+        ? Math.max(0, Math.ceil((Number(latestMissionState.unlockAt) - Date.now()) / 1000))
+        : 0;
       if (approved !== required) {
         approvalNotified = false;
       }
       if (approved === required && required > 0) {
-        statusBanner.innerHTML = "<strong>🎉 축하합니다! 미션 성공</strong><br>HQ에서 승인을 완료했습니다. 다음 미션을 진행하세요.";
+        statusBanner.innerHTML = isDelay
+          ? `<strong>확인 완료</strong><br>${delayRemain}초 후 다음 단계가 자동으로 열립니다.`
+          : "<strong>확인 완료</strong><br>본부 확인이 끝났습니다. 대시보드에서 다음 미션을 진행하세요.";
         if (!approvalNotified) {
           approvalNotified = true;
-          showToast("축하합니다! 사진이 승인되었습니다. 미션을 완료했습니다.", "info", 3500);
+          showToast("사진 확인이 끝났습니다. 다음 미션으로 이동해 주세요.", "info", 3500);
         }
         return;
       }
       if (hasRetry) {
-        statusBanner.textContent = "⚠️ 재도전 요청이 있습니다. 사유를 확인하고 사진을 다시 업로드하세요.";
+        statusBanner.textContent = "다시 촬영 요청이 있습니다. 표시된 사진만 다시 올리면 됩니다.";
         return;
       }
       if (uploaded === required && required > 0) {
-        statusBanner.textContent = "📮 사진을 모두 제출하였습니다. 승인 대기중입니다.";
+        statusBanner.textContent = "필요한 사진을 모두 올렸습니다. 본부 확인을 기다리세요.";
         return;
-      } else {
-        statusBanner.textContent = `📸 ${uploaded}/${required} 사진을 업로드했습니다.`;
       }
+      statusBanner.textContent = `${required}개 중 ${uploaded}개 업로드됨`;
+    }
+
+    function syncDelayTicker() {
+      if (delayTicker) {
+        clearInterval(delayTicker);
+        delayTicker = null;
+      }
+      if (latestMissionState?.stepStatus !== "delay" || !latestMissionState?.unlockAt) return;
+      delayTicker = setInterval(() => {
+        updateOverallStatus(latestUploadsMap);
+        const remain = Math.max(0, Number(latestMissionState.unlockAt) - Date.now());
+        if (remain <= 0) {
+          clearInterval(delayTicker);
+          delayTicker = null;
+        }
+      }, 1000);
+    }
+
+    function escapeHtml(value = "") {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function escapeAttr(value = "") {
+      return String(value == null ? "" : value).replace(/"/g, "&quot;");
     }
   </script>
 </body>

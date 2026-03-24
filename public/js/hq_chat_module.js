@@ -11,6 +11,7 @@ export function initHQChatModule({
   welcomeMessage = "[HQ 시스템] 채팅 연결 대기 중...",
   onTeamMessage,
   onMessagesRead,
+  onSendError,
 } = {}) {
   const container = document.getElementById(containerId);
   if (!container) return { send: () => {} };
@@ -206,16 +207,44 @@ export function initHQChatModule({
     return ref(db, `${chatBasePath}/${state.activeTeam}`);
   }
 
-  function sendMessage() {
+  async function sendMessageViaApi(teamId, text) {
+    const response = await fetch("/api/hq-chat-send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        projectId,
+        teamId,
+        sender: role,
+        text,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || `http-${response.status}`);
+    }
+  }
+
+  async function sendMessage() {
     const value = inputEl.value.trim();
     if (!value) return;
-    const refToUse = activeChatRef();
-    push(refToUse, {
-      sender: role,
-      text: value,
-      createdAt: serverTimestamp(),
-    });
-    inputEl.value = "";
+    try {
+      if (role === "HQ") {
+        await sendMessageViaApi(state.activeTeam, value);
+      } else {
+        const refToUse = activeChatRef();
+        await push(refToUse, {
+          sender: role,
+          text: value,
+          createdAt: serverTimestamp(),
+        });
+      }
+      inputEl.value = "";
+    } catch (error) {
+      console.error("HQ chat send failed", error);
+      onSendError?.(error);
+    }
   }
 
   buttonEl.addEventListener("click", sendMessage);
@@ -231,14 +260,23 @@ export function initHQChatModule({
   updatePlaceholder();
 
   return {
-    send: (message, targetTeamId = state.activeTeam) => {
+    send: async (message, targetTeamId = state.activeTeam) => {
       if (!message) return;
-      const refToUse = ref(db, `${chatBasePath}/${targetTeamId}`);
-      push(refToUse, {
-        sender: role,
-        text: message,
-        createdAt: serverTimestamp(),
-      });
+      try {
+        if (role === "HQ") {
+          await sendMessageViaApi(targetTeamId, message);
+        } else {
+          const refToUse = ref(db, `${chatBasePath}/${targetTeamId}`);
+          await push(refToUse, {
+            sender: role,
+            text: message,
+            createdAt: serverTimestamp(),
+          });
+        }
+      } catch (error) {
+        console.error("HQ chat send failed", error);
+        onSendError?.(error);
+      }
     },
     setActiveTeam(teamId) {
       if (!teamEntries.find((entry) => entry.id === teamId)) return;

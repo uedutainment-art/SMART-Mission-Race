@@ -36,15 +36,11 @@ function bubbleMarkup(stage, panel) {
   `;
 }
 
-function photoStatusLabel(status = "default") {
-  switch (status) {
-    case "new":
-      return { text: "Photo", className: "photo-status new" };
-    case "done":
-      return { text: "Photo ✓", className: "photo-status done" };
-    default:
-      return { text: "Photo", className: "photo-status" };
-  }
+function formatDelayLabel(unlockAt) {
+  const target = Number(unlockAt) || 0;
+  if (!target) return "자동 이동";
+  const remaining = Math.max(0, Math.ceil((target - Date.now()) / 1000));
+  return `${remaining}초`;
 }
 
 export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatOpen } = {}) {
@@ -61,13 +57,13 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
   const state = {
     teams: Array.isArray(teams) ? [...teams] : [],
     chatUnread: {},
-    photoStatus: {},
     chatHandler: onChatOpen,
-    photoHandler: null,
     cachedMarkup: "",
   };
 
   function render(list = state.teams) {
+    container.classList.toggle("hq-board--dense", list.length >= 20);
+    container.classList.toggle("hq-board--compact", list.length >= 28);
     const fragments = [];
 
     list.forEach((team, index) => {
@@ -77,12 +73,36 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
       const number = team.number ?? index + 1;
       const alias = team.alias || team.label || team.name || "";
       const displayName = alias ? `${number}팀 ${alias}` : `${number}팀`;
+      const stateBadges = [];
+      if (team.hqPending) {
+        stateBadges.push(`
+          <span class="team-state-badge team-state-badge--hq">
+            HQ · M${team.hqPending.missionNumber} ${team.hqPending.stepLabel}
+          </span>
+        `);
+      }
+      if (team.delayPending) {
+        stateBadges.push(`
+          <span class="team-state-badge team-state-badge--delay">
+            이동 · M${team.delayPending.missionNumber} ${formatDelayLabel(team.delayPending.unlockAt)}
+          </span>
+        `);
+      }
+      if (team.currentStage === "code" && team.currentCodeNumber) {
+        stateBadges.push(`
+          <span class="team-state-badge team-state-badge--code">
+            코드 ${team.currentCodeNumber}${team.currentCodeLabel ? ` · ${team.currentCodeLabel}` : ""}
+          </span>
+        `);
+      } else if (team.currentRouteKey) {
+        stateBadges.push(`
+          <span class="team-state-badge team-state-badge--route">
+            공통 ${team.currentRouteKey}${team.currentRouteLabel && team.currentRouteLabel !== team.currentRouteKey ? ` · ${team.currentRouteLabel}` : ""}
+          </span>
+        `);
+      }
 
       state.chatUnread[team.id] = state.chatUnread[team.id] ?? 0;
-      state.photoStatus[team.id] = team.photoStatus ?? state.photoStatus[team.id] ?? "default";
-
-      const { text: photoText, className: photoClass } = photoStatusLabel(state.photoStatus[team.id]);
-
       const tiles = [];
       for (let i = 1; i <= total; i++) {
         const missionData = missions[i] || {};
@@ -100,9 +120,9 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
         <div class="team-box" data-team-id="${team.id}">
           <div class="team-left">
             <div class="team-name">${displayName}</div>
+            ${stateBadges.length ? `<div class="team-state-badges">${stateBadges.join("")}</div>` : ""}
             <div class="progress-info">${completed}/${total}</div>
             <div class="team-actions">
-              <button class="${photoClass}" data-team-id="${team.id}">${photoText}</button>
               <button class="chat-alert-btn${state.chatUnread[team.id] > 0 ? " alert" : ""}" data-team-id="${team.id}">
                 ${state.chatUnread[team.id] > 0 ? `Chat (${state.chatUnread[team.id]})` : "Chat"}
               </button>
@@ -131,15 +151,6 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
         }
       });
     });
-
-    container.querySelectorAll(".photo-status").forEach((button) => {
-      button.addEventListener("click", () => {
-        const teamId = button.dataset.teamId;
-        if (typeof state.photoHandler === "function") {
-          state.photoHandler(teamId);
-        }
-      });
-    });
   }
 
   render();
@@ -148,16 +159,6 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
     update(nextTeams = []) {
       state.teams = Array.isArray(nextTeams) ? [...nextTeams] : [];
       render();
-    },
-    setPhotoStatus(teamId, status = "default") {
-      state.photoStatus[teamId] = status;
-      const button = container.querySelector(`.photo-status[data-team-id="${teamId}"]`);
-      if (button) {
-        const { text, className } = photoStatusLabel(status);
-        button.className = className;
-        button.dataset.teamId = teamId;
-        button.textContent = text;
-      }
     },
     setChatAlert(teamId, unreadCount = 0) {
       const safeCount = Math.max(0, unreadCount | 0);
@@ -175,9 +176,6 @@ export function initHQBoardModule({ containerId = "hqBoard", teams = [], onChatO
     },
     setChatHandler(handler) {
       state.chatHandler = handler;
-    },
-    setPhotoHandler(handler) {
-      state.photoHandler = handler;
     },
   };
 }

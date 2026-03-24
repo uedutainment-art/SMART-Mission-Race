@@ -1,5 +1,9 @@
 const PROJECT_KEY = "smrProjectContext";
 
+function buildLocalPageUrl(pageName) {
+  return new URL(`./${pageName}`, window.location.href).toString();
+}
+
 export function storeProjectContext(payload = {}) {
   if (!payload?.projectId) return;
   const data = { ...payload, ts: Date.now() };
@@ -24,7 +28,7 @@ export function requireProjectContext(options = {}) {
   const ctx = loadProjectContext();
   if (!ctx) {
     if (options.redirect !== false) {
-      window.location.href = options.fallbackUrl || "/admin.html";
+      window.location.href = options.fallbackUrl || buildLocalPageUrl("admin.html");
     }
     return null;
   }

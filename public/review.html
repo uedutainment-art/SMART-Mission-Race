@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SMART Mission Race | 사진 검수</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./css/review.css" />
+  </head>
+  <body>
+    <div class="review-shell">
+      <header class="review-header">
+        <div>
+          <h1 id="reviewTitle">사진 검수</h1>
+          <p id="reviewSubtitle">프로젝트를 불러오는 중입니다.</p>
+        </div>
+        <div class="review-header__actions">
+          <button type="button" class="review-btn review-btn--ghost" id="reviewAlertScopeBtn">승인 대기만</button>
+          <button type="button" class="review-btn review-btn--ghost" id="reviewAlertToggleBtn">알림 켜짐</button>
+          <button type="button" class="review-btn review-btn--ghost" id="reviewSoundToggleBtn">소리 켜짐</button>
+          <button type="button" class="review-btn review-btn--ghost" id="reviewRefreshBtn">새로고침</button>
+          <button type="button" class="review-btn review-btn--ghost" id="reviewOpenPhotoApproveBtn">모바일 승인 열기</button>
+          <button type="button" class="review-btn" id="reviewOpenHQBtn">HQ 열기</button>
+        </div>
+      </header>
+
+      <main class="review-layout">
+        <aside class="review-panel review-panel--queue">
+          <div class="review-panel__head">
+            <strong>대기 큐</strong>
+            <span class="review-badge" id="reviewQueueBadge">0팀</span>
+          </div>
+          <div class="review-filter-row">
+            <button type="button" class="review-filter is-active" data-review-filter="pending">승인 대기</button>
+            <button type="button" class="review-filter" data-review-filter="retry">재도전</button>
+            <button type="button" class="review-filter" data-review-filter="all">전체</button>
+          </div>
+          <div class="review-queue" id="reviewQueue"></div>
+        </aside>
+
+        <section class="review-panel review-panel--main">
+          <div class="review-panel__head">
+            <strong id="reviewSelectedTeam">팀을 선택하세요.</strong>
+            <span class="review-badge" id="reviewMissionBadge">미션 -</span>
+          </div>
+          <div class="review-board">
+            <div class="review-batches__head">
+              <strong>전체 팀 사진 보드</strong>
+              <span class="review-badge" id="reviewBoardBadge">0팀</span>
+            </div>
+            <div class="review-board__rows" id="reviewBoard"></div>
+          </div>
+          <div class="review-mission-switcher" id="reviewMissionTabs"></div>
+          <div class="review-batches">
+            <div class="review-batches__head">
+              <strong>제출 묶음</strong>
+              <span class="review-badge" id="reviewBatchBadge">0묶음</span>
+            </div>
+            <div class="review-batches__list" id="reviewBatchList"></div>
+          </div>
+          <div class="review-gallery" id="reviewGallery"></div>
+          <div class="review-preview" id="reviewPreview">사진을 선택하면 크게 표시됩니다.</div>
+          <div class="review-actions">
+            <button type="button" class="review-btn review-btn--ghost" id="reviewPrevIssueBtn">이전 대기</button>
+            <button type="button" class="review-btn review-btn--warn" id="reviewRetryBtn">재도전</button>
+            <button type="button" class="review-btn review-btn--primary" id="reviewApproveBtn">승인</button>
+            <button type="button" class="review-btn review-btn--ghost" id="reviewNextIssueBtn">다음 대기</button>
+          </div>
+          <div class="review-status" id="reviewStatusText"></div>
+        </section>
+
+        <aside class="review-panel review-panel--chat">
+          <div class="review-panel__head">
+            <strong>팀 채팅</strong>
+            <span class="review-badge" id="reviewChatBadge">0건</span>
+          </div>
+          <div class="review-chat" id="reviewChat"></div>
+          <div class="review-chat-compose">
+            <textarea id="reviewChatInput" rows="3" placeholder="팀에 보낼 메시지를 입력하세요."></textarea>
+            <button type="button" class="review-btn review-btn--primary" id="reviewChatSendBtn">전송</button>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <div class="review-modal" id="reviewRetryModal" hidden>
+      <div class="review-modal__panel" role="dialog" aria-modal="true" aria-labelledby="reviewRetryTitle">
+        <div class="review-modal__head">
+          <div>
+            <h2 id="reviewRetryTitle">재도전 요청</h2>
+            <p id="reviewRetryMeta">선택한 팀과 미션에 재도전 사유를 보냅니다.</p>
+          </div>
+          <button type="button" class="review-btn review-btn--ghost review-btn--icon" id="reviewRetryClose">×</button>
+        </div>
+        <div class="review-reason-presets">
+          <button type="button" class="review-filter" data-retry-preset="사진이 흐려 다시 촬영해 주세요.">흐림</button>
+          <button type="button" class="review-filter" data-retry-preset="미션 장소가 잘 보이도록 다시 촬영해 주세요.">장소 확인</button>
+          <button type="button" class="review-filter" data-retry-preset="참가 인원이 모두 보이도록 다시 촬영해 주세요.">인원 확인</button>
+          <button type="button" class="review-filter" data-retry-preset="지시사항에 맞게 다시 촬영해 주세요.">다시 촬영</button>
+        </div>
+        <textarea id="reviewRetryInput" rows="5" placeholder="재도전 사유를 입력하세요."></textarea>
+        <div class="review-modal__actions">
+          <button type="button" class="review-btn review-btn--ghost" id="reviewRetryCancel">취소</button>
+          <button type="button" class="review-btn review-btn--warn" id="reviewRetrySubmit">재도전 전송</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="review-hover-preview" id="reviewHoverPreview" hidden></div>
+    <div class="review-toast" id="reviewToast" hidden></div>
+
+    <script type="module" src="./js/review.js?v=20260317-cache-1"></script>
+  </body>
+</html>

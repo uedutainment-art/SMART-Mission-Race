@@ -4,38 +4,53 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SMART Mission Race | 팀 로그인</title>
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./css/login.css" />
   </head>
   <body>
     <div class="login-scene">
       <img src="" alt="프로젝트 로고" class="login-logo hidden" id="projectLogo" />
-      <div class="project-name" id="projectProgram">프로젝트 정보를 입력하세요.</div>
-      <div class="project-dates" id="projectDates"></div>
+      <div class="project-name" id="projectProgram"></div>
+      <div class="project-subtitle hidden" id="projectSubtitle"></div>
+      <div class="project-dates hidden" id="projectDates"></div>
+      <div class="project-notice hidden" id="projectNotice"></div>
+      <div class="login-method-guide hidden" id="loginMethodGuide"></div>
+      <div class="login-entry-note hidden" id="loginEntryNote"></div>
+      <div class="login-announcements hidden" id="loginAnnouncements"></div>
       <div class="login-status" id="loginStatus"></div>
+      <div class="resume-panel hidden" id="resumePanel">
+        <div class="resume-copy" id="resumeCopy"></div>
+        <div class="resume-actions">
+          <button class="login-button login-button-secondary" id="resumeButton" type="button">최근 팀으로 복귀</button>
+          <button class="login-button login-button-ghost" id="clearResumeButton" type="button">다른 팀으로 입장</button>
+        </div>
+      </div>
 
       <section class="login-step active" id="masterStep">
         <div class="input-field">
-          <label for="masterInput">MASTER PASSWORD</label>
-          <input id="masterInput" type="password" autocomplete="current-password" placeholder="마스터 패스워드 입력" />
+          <label for="masterInput">패스워드</label>
+          <input id="masterInput" type="password" autocomplete="current-password" placeholder="패스워드 입력" />
+          <div class="login-hint">운영진이 전달한 패스워드로 프로젝트를 확인합니다.</div>
         </div>
         <button class="login-button" id="masterButton">UNLOCK</button>
       </section>
 
       <section class="login-step" id="teamStep">
         <div class="input-field">
-          <label for="teamNameInput">TEAM NAME</label>
-          <input id="teamNameInput" type="text" placeholder="예) 잘나가는 조" maxlength="24" />
+          <label for="teamNameInput">팀 이름</label>
+          <input id="teamNameInput" type="text" placeholder="팀 이름 입력" maxlength="24" />
+          <div class="login-hint">비워두면 기존 팀 이름 또는 팀 번호로 입장합니다.</div>
         </div>
         <div class="input-field">
-          <label for="teamPasswordInput">TEAM PASSWORD</label>
+          <label for="teamPasswordInput">팀 비밀번호</label>
           <input id="teamPasswordInput" type="password" placeholder="팀 비밀번호" autocomplete="off" />
         </div>
-        <button class="login-button" id="teamButton">TEAM LOGIN</button>
+        <button class="login-button" id="teamButton">팀 입장</button>
       </section>
 
       <div class="login-footer">ⓒ U-edutainment. All rights reserved.</div>
     </div>
 
-    <script type="module" src="./js/login.js"></script>
+    <script type="module" src="./js/login.js?v=20260317-cache-1"></script>
   </body>
 </html>

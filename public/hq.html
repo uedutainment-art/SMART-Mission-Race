@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HQ | SMART Mission Race</title>
+  <link rel="icon" href="data:," />
   <link rel="stylesheet" href="./css/hq.css" />
 </head>
 
@@ -22,8 +23,24 @@
 
     <main class="center-panel-container">
       <div class="hq-actions">
+        <input id="hqTeamSearch" class="hq-filter-input" type="search" placeholder="팀 검색" />
+        <select id="hqStatusFilter" class="hq-filter-select">
+          <option value="all">전체</option>
+          <option value="active">진행중</option>
+          <option value="hq">HQ 대기</option>
+          <option value="delay">자동 이동 대기</option>
+          <option value="chat">채팅 알림</option>
+          <option value="done">완료</option>
+        </select>
+        <button id="hqReviewBtn" class="reset-btn">사진 검수 열기</button>
+        <button id="hqPhotoManifestBtn" class="reset-btn">전체 사진 CSV</button>
+        <button id="hqPhotoSlidesBtn" class="reset-btn">슬라이드 CSV</button>
+        <button id="hqPhotoScriptBtn" class="reset-btn">전체 다운로드 스크립트</button>
+        <button id="hqEventBundleBtn" class="reset-btn">종료 패키지</button>
         <button id="hqResetBtn" class="reset-btn">선택 팀 미션 리셋</button>
       </div>
+      <div class="hq-actions-note">전체 사진 CSV는 정리표, 전체 다운로드 스크립트는 원본 일괄 저장용입니다.</div>
+      <div class="hq-priority" id="hqPriorityQueue"></div>
       <div class="center-panel" id="hqBoard"></div>
     </main>
 
@@ -35,10 +52,31 @@
         <div class="timer" id="hqRemainTime"></div>
         <div class="timer-note" id="hqTimerNote"></div>
       </div>
+      <div class="hq-side-panel">
+        <div class="hq-side-panel__head">
+          <strong>최근 운영 타임라인</strong>
+        </div>
+        <div class="hq-ops-filters">
+          <button type="button" class="hq-ops-filter is-active" data-hq-ops-filter="all">전체</button>
+          <button type="button" class="hq-ops-filter" data-hq-ops-filter="announcement">공지</button>
+          <button type="button" class="hq-ops-filter" data-hq-ops-filter="approve">승인</button>
+          <button type="button" class="hq-ops-filter" data-hq-ops-filter="retry">재도전</button>
+          <button type="button" class="hq-ops-filter" data-hq-ops-filter="bypass">특별 코드</button>
+        </div>
+        <div id="hqOpsTimeline" class="hq-ops-timeline"></div>
+      </div>
+      <div class="hq-side-panel">
+        <div class="hq-side-panel__head">
+          <strong>Drive 백업 상태</strong>
+        </div>
+        <div id="hqDriveBackupStatus" class="hq-drive-status">
+          <div class="hq-drive-status__empty">Drive 백업 상태를 불러오는 중입니다.</div>
+        </div>
+      </div>
       <div id="hqChat" class="chatbox"></div>
     </aside>
   </div>
 
-  <script type="module" src="./js/hq.js"></script>
+  <script type="module" src="./js/hq.js?v=20260317-cache-1"></script>
 </body>
 </html>
